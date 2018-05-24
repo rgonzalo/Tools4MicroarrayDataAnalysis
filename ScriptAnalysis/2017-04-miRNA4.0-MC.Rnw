@@ -1,0 +1,232 @@
+
+<<setDirs,echo=FALSE>>=
+ mainDir <-getwd()
+ workingDir <- mainDir
+ dataDir <-file.path(mainDir, "dades")
+ celDir <-  file.path(workingDir, "celfiles")
+ resultsDir <- file.path(workingDir, "results")
+ imagesDir<-file.path(mainDir,"images")
+@
+
+<<options,echo=FALSE>>=
+ require(knitr)
+ opts_chunk$set(fig.path = imagesDir, echo=FALSE, message=FALSE,warnings = FALSE )
+ options(warn=-1)
+@
+
+<<loadData2,echo=FALSE>>=
+load(file.path(dataDir,"afterTopTabs.Rda"))
+@
+
+\subsection{Multiple comparisons between gene lists}
+
+In order to compare the paired an unpaired statistical test that has been used in this study, a multiple comparison analysis has been performed, which include a venn diagram. Common genes obtained with the two approaches will appear in the intersection in the venn diagram plot. File \texttt{VennDiagram.pdf} with the venn diagram plot and \texttt{mult.comp.CasovsCTLvsCasovsCTL.Paired.csv} with the genes, were generated and can be found in the \texttt{results} folder.
+
+ <<VDfunction,echo=FALSE,results='hide'>>=
+ vennfrom2csv<-function(file1,name1,file2,name2,FC,pval) {
+   ##seleccionem els cutoffs
+   ##llista1
+   pass1 <- file1[which(file1$P.Value<pval & abs(file1$logFC)>FC),]
+   #dim(pass1)
+   ##llista2
+   pass2 <- file2[which(file2$P.Value<pval & abs(file2$logFC)>FC),]
+   #dim(pass2)
+
+   ####mirem que no entrades repetides per Affy ID i s'ajunten
+   #list1 <- as.character(sort(unique(pass1$X)))
+   #length(list1)
+   #list2 <- as.character(sort(unique(pass2$X)))
+   #length(list2)
+
+   list1 <- as.character(rownames(pass1))
+   #length(list1)
+   list2 <- as.character(rownames(pass2))
+   #length(list2)
+
+   list <- c(list1, list2)
+   #length(list)
+   list <- sort(unique(list))
+   #length(list)
+
+   ####es crea un data.frame que omplim de 0 i després de 1 si hi coexisteixen en les dues llistes
+   df <- data.frame(genes = list, l1 = rep(0,length(list)), l2 = rep(0,length(list)))
+   #head(df)
+
+   df$l1 <- as.numeric((df$genes %in% list1)==T)
+   df$l2 <- as.numeric((df$genes %in% list2)==T)
+
+   ##Fem el diagrama de venn
+   overlap<-calculate.overlap(x=list("list1"=list1,"list2"=list2))
+
+   draw.pairwise.venn(length(overlap$a1),length(overlap$a2),length(overlap$a3),
+                   category=c(name1,name2),scaled = TRUE,euler.d = TRUE,
+                  fill = c("blue", "red"), lty = "blank", 
+                  cat.pos = c(-45, 130), cat.col = c("blue","red"))
+
+   ##es grava l'arxiu de text on s'indica quin gen hi és a cada venn
+   datos<-file2[which(rownames(file2) %in% df$genes),]
+   datos<-datos[,-c(3:length(colnames(datos)))]
+   rownames(df)<-df$genes
+   datos2<-merge(datos,df,by=0)
+   datos2<-datos2[,-c(3:4)]
+   colnames(datos2)<-c("AffyID","Symbols",name1,name2)
+   write.csv(datos2, file=file.path(resultsDir,paste("mult.comp.",name1,"vs",name2,".csv",sep = "")),sep=";")
+ }
+@
+
+
+Venn diagram for multiple comparison is shown in figure \ref{fig:venn1}. \textbf{57 miRNAs in common with log fold change of 0.5 and non adjusted pvalue of 0.05} between the two comparisons.
+
+<<venn1, echo=FALSE,results='hide',message=FALSE>>=
+ library(VennDiagram)
+ library(gridExtra) #para poder añadir el título al gráfico
+ rownames(topTab_CasovsCTL.anotada) <- topTab_CasovsCTL.anotada$Probe.Set.Name
+ rownames(topTab_CasovsCTL.Paired.anotada) <- topTab_CasovsCTL.Paired.anotada$Probe.Set.Name
+ 
+ top1 <- topTab_CasovsCTL.anotada
+ name1 <-"CasovsCTL"
+ top2 <- topTab_CasovsCTL.Paired.anotada
+ name2<-"CasovsCTL.Paired"
+
+ pdf(file.path(resultsDir,"VennDiagram.pdf"))
+ grid.arrange(gTree(children=vennfrom2csv(top1,name1,top2,name2,0.5,0.05)),top=paste("Venn Diagram for: ",name1, " vs ",name2," (logFC 0.5 & pval 0.05)",sep=""))
+ dev.off()
+ @
+
+\begin{figure}
+ \centering
+ \includegraphics[scale=0.4]{results/VennDiagram.pdf}
+ \caption{Venn diagram for comparisons CasovsCTL vs CasovsCTL.Paired}
+   \label{fig:venn1}
+ \end{figure}
+ 
+
+\newpage
+ 
+ \subsection{Expression profiles visualization: Heatmaps}
+ It is interesting to look for common patterns of regulation between different experimental conditions. Every clustering is represented in a heatmap shown in files \texttt{HeatMap.XXX.pdf}, where \texttt{XXX} refers to the comparisons used.
+
+ <<prepareData, echo=FALSE,results='hide'>>=
+library(gplots)
+library(Biobase)
+library(limma)
+
+ ##preparar dades per heatmap CasevsCTL
+ res1<-decideTests(fit.main.1,method="separate", p.value=0.05, lfc=0.5,
+                   adjust.method = "none")
+ sum.res.rows1<-apply(abs(res1),1,sum)
+ res.selected1<-res1[sum.res.rows1!=0,]
+ print(summary(res1))
+
+ probeNames<-rownames(res1)
+ probeNames.selected<-probeNames[sum.res.rows1!=0]
+ #dels miRNAs seleccionats agafem les dades d'expressió
+ data.selected.1<-end.data1[probeNames.selected,]
+ 
+ #busquem els miRNAs perque sortin al heatmap
+ miRNA.CasovsCTL <- topTab_CasovsCTL.anotada[rownames(data.selected.1),1:8]
+ rnames.1<-miRNA.CasovsCTL$Symbol
+ 
+ 
+ colnames(data.selected.1)<-targets1$ShortName
+ #ordenem les dades
+ data.selected.1.ordered <- data.selected.1[,c(1:3,5,7,9,11,12,14,16,18,20,
+                                               22,23,25,27,                                  28,33,34,37,4,6,8,10,13,15,17,19,21,24,
+                                   26,29:32,35,36,38,39)]
+ 
+ end.data2HM.1<-data.matrix(data.selected.1.ordered)
+ rownames(end.data2HM.1) <- rnames.1
+ 
+
+ #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ ##preparar dades per heatmap Paired
+ res2<-decideTests(fit.main.2,method="separate", p.value=0.05, lfc=0.5,
+                   adjust.method = "none")
+ sum.res.rows2<-apply(abs(res2),1,sum)
+ res.selected2<-res2[sum.res.rows2!=0,]
+ print(summary(res2))
+
+ probeNames<-rownames(res2)
+ probeNames.selected2<-probeNames[sum.res.rows2!=0]
+ #dels miRNAs seleccionats agafem les dades d'expressió
+ data.selected.2<-end.data2[probeNames.selected2,]
+ 
+ #busquem els miRNAs perque sortin al heatmap
+ miRNA.2 <- topTab_CasovsCTL.Paired.anotada[rownames(data.selected.2),1:8]
+ rnames.2<-miRNA.2$Symbol
+ 
+ colnames(data.selected.2)<-targets2$ShortName
+ #ordenem les dades
+ data.selected.2.ordered <- data.selected.2[,c(1,2,4,6,8,10,11,13,15,17,19,
+                                               21,22,24,26,27,32,33,36,3,
+                                               5,7,9,12,14,16,18,20,23,
+                                               25,28:31,34,35,37,38)]
+ 
+ end.data2HM.2<-data.matrix(data.selected.2.ordered)
+ rownames(end.data2HM.2) <- rnames.2
+
+
+ #grupColors <- targets$Colores
+ mypalette <- colorRampPalette(c("blue", "white", "red"))(n = 299)
+ @
+ \\
+Heatmap for comparison \textbf{CasovsCTL} (figure \ref{fig:heatmap1}) has been performed with miRNAs with a \textbf{pValue 0.05 \& logFC 0.5}, resulting in a total of \textbf{61 miRNAs} included. Hierarquical clustering for samples (columns), shows a missclassification of samples between the two groups.
+
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.5]{results/HeatmapCasovsCTL.pdf}
+\caption{\label{fig:heatmap1}Heatmap for comparison CasovsCTL with pValue 0.05 $&$ logFC 0.5}}
+\end{figure}
+
+Heatmap for comparison \textbf{CasovsCTL.Paired} (figure \ref{fig:heatmap2}) has been performed with miRNAs with a \textbf{pValue 0.05 \& logFC 0.5}, given a total of \textbf{77 miRNAs} included. Hierarquical clustering for samples (columns), as in previous heatmap, shows a missclassification of samples between the two groups.
+\\
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.5]{results/HeatmapCasovsCTLPaired.pdf}
+\caption{\label{fig:heatmap2}Heatmap for comparison CasovsCTL.Paired with pValue 0.05 $&$ logFC 0.5}}
+\end{figure}
+
+ <<heatmaps2pdf,results='hide',echo=FALSE>>=
+ pdf(file.path(resultsDir,"HeatmapCasovsCTL.pdf"))
+ par(mfrow=c(1,1),cex.main=0.7)
+ heatmap.2(end.data2HM.1,
+           Rowv=TRUE,
+           #Colv=FALSE,
+           main="HeatMap for CasovsCTL pValue 0.05 & logFC 0.5",
+           scale="row",
+           col=mypalette,
+           sepcolor="white",
+           sepwidth=c(0.05,0.05),
+           cexRow=0.5,
+           cexCol=0.6,
+           key=FALSE,
+           density.info="histogram",
+           tracecol=NULL,
+           srtCol=30,
+           ColSideColors = c(rep("blue",20 ),rep("red",19))
+           )
+ dev.off()
+
+ pdf(file.path(resultsDir,"HeatmapCasovsCTL.Paired.pdf"))
+ par(mfrow=c(1,1),cex.main=0.7)
+ heatmap.2(end.data2HM.2,
+           Rowv=TRUE,
+           #Colv=FALSE,
+           main="HeatMap for CasovsCTL.Paired pValue 0.05 & logFC 0.5",
+           scale="row",
+           col=mypalette,
+           sepcolor="white",
+           sepwidth=c(0.05,0.05),
+           cexRow=0.5,
+           cexCol=0.6,
+           key=FALSE,
+           density.info="histogram",
+           tracecol=NULL,
+           srtCol=30,
+           ColSideColors = c(rep("blue",19 ),rep("red",19))
+           )
+ dev.off()
+ @
+ 

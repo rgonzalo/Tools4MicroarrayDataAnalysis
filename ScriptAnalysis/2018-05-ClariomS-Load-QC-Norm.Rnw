@@ -1,0 +1,287 @@
+
+\section{Introduction and Study Organization}
+The researcher is interested in study the effects of amyloid beta proteins deposits in blood
+vessels of mice. They are working with a mouse model with over expression of APP-transgene,
+what generates amyloid plaques.
+\\
+The experimental conditions considered in this analysis are:
+
+\begin{itemize}
+  \item Genotype:
+    \begin{itemize}
+      \item 16 samples from WT mouse (WT)
+      \item 16 samples from APP mouse (APP)
+    \end{itemize}
+   \item Time:
+    \begin{itemize}
+      \item 8 samples from time point 6 month (6M)
+      \item 8 samples from time point 12 month (12M)
+      \item 8 samples from time point 18 month (18M)
+      \item 8 samples from time point 24 month (24M)
+    \end{itemize}   
+\end{itemize}
+
+\\
+The analysis has been performed following the usual “pipeline” for microarray data
+analysis. Roughly speaking each of the items below corresponds to one section in the analysis report:
+\begin{enumerate}
+   \item Quality control: Do we have good data? Should any slides be rejected?
+   \item Data preprocess: Summarization, filtering and normalization.
+   \item Selection of genes differential expressed for each set of conditions.
+   \item Search for gene expression patterns and grouping of samples.
+   \item Annotation of results and analysis of biological significance.
+\end{enumerate}
+ 
+The statistic analysis has been performed using the statistical language  ``R''( \textttt{\Sexpr{R.Version()$versi}, Copyright (C) 2015 The R Foundation for Statistical Computing} ), and the libraries developed for the microarray analysis in the Bioconductor Project (\url{www.bioconductor.org}). More details about the methods used in these analysis could be  found in reference \cite{Gentleman:2005}.
+ 
+\subsection{Objective and Study Questions} \label{objectives}
+ 
+The \textbf{main objective} of the study is to find differential expressed genes in samples from mice with APP-transgene and samples from control mice at different time points.
+ 
+\noindent This objective may be summarized in the following questions, as described in the proposal:
+\begin{enumerate}
+ \item Effect of amyloid deposits at each time point:
+    \begin{enumerate}
+      \item APP.6M vs WT.6M = APP.6M - WT.6M	
+      \item APP.12M vs WT.12M = APP.12M - WT.12M
+      \item APP.18M vs WT.18M = APP.18M - WT.18M
+      \item APP.24M vs WT.24M = APP.24M - WT.24M
+    \end{enumerate}
+    
+  \item Effect of aging respect basal time (6M)
+    \begin{enumerate}
+      \item WT.12M vs WT.6M = WT.12M - WT.6M
+      \item WT.18M vs WT.6M = WT.18M - WT.6M
+      \item WT.24M vs WT.6M = WT.24M - WT.6M
+    \end{enumerate}  
+
+   \item Effect of amyloid deposits at each time respect to time 6 months in APP mice
+    \begin{enumerate}
+      \item APP.12M vs APP.6M = APP.12M - APP.6M
+      \item APP.18M vs APP.6M = APP.18M - APP.6M
+      \item APP.24M vs APP.6M = APP.24M - APP.6M
+    \end{enumerate}
+    
+ \item Effect of amyloid deposits at each time respect to time 6 months in APP mice, corrected by mice age:
+    \begin{enumerate}
+      \item {\footnotesize (APP.12M - WT.12M) vs (APP.6M - WT.6M) = (APP.12M - WT.12M) - (APP.6M - WT.6M)}
+      \item {\footnotesize (APP.18M - WT.18M) vs (APP.6M - WT.6M) = (APP.18M - WT.18M) - (APP.6M - WT.6M)}
+      \item {\footnotesize (APP.24M - WT.24M) vs (APP.6M - WT.6M) = (APP.24M - WT.24M) - (APP.6M - WT.6M)}
+    \end{enumerate}
+\end{enumerate}
+ 
+\section{Data and Experimental design}
+Data for the analysis has been obtained from the Genomic's UAT core facility at VHIR, where the microarrays were performed. The study is based on 32 samples hybridized in Clariom S Array 16x plate. Table \ref{targettable1} shows the allocation of each sample to each experimental condition:
+ 
+<<setDirs,echo=FALSE>>=
+mainDir <-getwd()
+workingDir <- mainDir
+dataDir <-file.path(mainDir, "dades")
+celDir <-  file.path(workingDir, "celfiles")
+resultsDir <- file.path(workingDir, "results")
+imagesDir<-file.path(mainDir,"images")
+@
+ 
+<<options,echo=FALSE>>=
+require(knitr)
+opts_chunk$set(fig.path = imagesDir, echo=FALSE, message=FALSE,warnings = FALSE )
+options(warn=-1)
+@
+ 
+<<loadpackages, echo=FALSE, results='hide',message=FALSE>>=
+library(xtable)
+library(Biobase)
+library(oligo)
+library(arrayQualityMetrics)
+library(ggplot2)
+library(ggrepel)
+@
+ 
+<<phenoData1, echo=FALSE, results='asis'>>=
+targets <-read.csv2(file.path(dataDir,"targets.MHG.D1957.csv"), header = TRUE, sep = ";", 
+                    row.names = 1) 
+ 
+x.big<-xtable(targets, caption="Targets file showing samples and covariates.",
+               label="targettable1")
+print(x.big,tabular.environment='longtable',floating=FALSE, size = "tiny")
+ 
+pd <-read.AnnotatedDataFrame(file.path(dataDir,"targets.MHG.D1957.csv"),header=TRUE,
+                             row.name="FileName",sep=";")
+@
+ 
+\section{Results}
+\subsection{Quality Control} \label{QC}
+Different types of quality controls (QC) have been performed in this analysis. It is important to do this QC before and after array normalization to check if all the arrays are suitable for normalization process, and check if normalized data is appropriated for differential expression analysis.
+Moreover,  a comprehensive report and some more figures of quality control,  are provided for the raw data \texttt{(QCDir.raw/index.html)} and for the normalized data \texttt{(QCDir.norm/index.html)} to help the user to understand whether a particular array could be considered as an outlier.
+ 
+<<readcels, echo=FALSE,results='hide'>>=
+celFiles <- list.celfiles(celDir, full.names = TRUE)
+rawData <- read.celfiles(celFiles, phenoData = pd)
+@
+ 
+<<preajustes, echo=FALSE,results='hide'>>=
+colores <- as.character(targets$colores)
+grupos <- as.factor(targets$Group)
+sampleNames <-targets$ShortName
+@ 
+
+Figure \ref{fig:boxplot} shows a box plot representing summaries of the signal intensity distributions of the arrays. Typically, one expects the boxes to have similar positions and widths. If the distribution of an array is very different from the others, this may indicate a problem.
+   
+ 
+<<boxplot2pdf,results='hide',message=FALSE, eval=TRUE>>=
+pdf(file.path(resultsDir,"BoxplotRaw.pdf"))
+  boxplot(rawData, cex.axis=0.5, col = colores,  las=2, names = sampleNames, 
+         main="Boxplot for arrays intensity: Raw Data")
+dev.off()
+@ 
+ 
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[scale=0.30]{results/BoxplotRaw.pdf}
+  \caption{Intensity distribution of the raw data.}
+  \label{fig:boxplot}
+\end{figure}
+ 
+As shown in figure \ref{fig:boxplot}, the intensity distribution of the raw data of the arrays shows some variation as expected for raw data.\\
+
+Figure \ref{fig:PCA2D} shows a scatter plot of the arrays along the first two principal components. Principal components Analysis (PCA) is a dimension reduction technique that may be used to represent the values of an expression matrix in two (or three) dimensions. The plot is constructed in such a way that “similar” arrays should appear together in the plot, so that if a sample appears near others that are not considered similar it can be suspected the presence of some kind of technical problems such as batch effects, mislabeling of samples, etc.
+ 
+<<plotPCA3func, echo=FALSE>>=
+source("https://raw.githubusercontent.com/uebvhir/UEB_PCA/master/UEB_plotPCA3.R")
+@ 
+ 
+<<plotPCA3,results='hide',message=FALSE, eval=FALSE>>=
+colorPCA <- c("darkblue", "red", "darkgreen", "black", "lightblue", "pink", 
+              "lightgreen", "grey")
+
+pdf(file.path(resultsDir,"PCAraw.pdf"))
+  plotPCA3(exprs(rawData), labels = sampleNames, factor = grupos, 
+         title="Raw data", scale = FALSE,
+         colores = colorPCA, size = 2.5)
+dev.off()
+@
+ 
+\begin{figure}[htbp]
+ \centering
+ \includegraphics{results/PCAraw.pdf}
+ \caption{Principal component 2D plot of initial samples colored group.}
+ \label{fig:PCA2D}
+\end{figure}
+ 
+In this study, first component of the PCA (figure \ref{fig:PCA2D}), accounts for 51\% of the total variability and the second component for 12.1\% of the total variability. First component separates the \texttt{6M} and \texttt{24M} groups of samples on the right of the plot, and samples from the \texttt{12M} and \texttt{18M} groups on the left. In general, samples from the same \texttt{Time} are grouped together, independently of their \tettt{Genotype}.
+
+\\
+Two more approaches to check the quality of the arrays, not shown here but present in the \texttt{Results} folder, are the Heatmap depicting the distances between arrays  and the hierarchical clustering (\texttt{QCrawData.pdf}). In the heatmap, the color scale is chosen to cover the range of distances encountered in the dataset. Patterns in this plot can indicate some kind of clustering (grouping) of the arrays which may be attributable either to biological, experimental or technical effects. Usually distances between arrays should be very similar, so when one array is very different from the rest it is identified as an outlier. In hierarchical clustering, distances between arrays, as a measure of similarity,  are calculated and plotted into a graph to assess how the samples are grouped among them.
+\\
+ 
+<<distAnalisis, echo=FALSE,results='hide', eval=FALSE>>=
+manDist <-  dist(t(exprs(rawData))) 
+clust.euclid.average <- hclust(dist(t(exprs(rawData))),method="average")
+ 
+pdf(file.path(resultsDir, "QCRawData.pdf"))
+  heatmap (as.matrix(manDist),  col=heat.colors(16), labCol = sampleNames,
+          labRow = sampleNames)  
+  plot(clust.euclid.average, labels=sampleNames, 
+       main="Hierarchical clustering of samples", hang=-1,cex=0.5)
+dev.off()
+@
+ 
+<<arrayQuality, warning=FALSE,echo=FALSE,eval=FALSE>>=
+arrayQualityMetrics(rawData, outdir = file.path(resultsDir, "QCDir.Raw"), force=TRUE)
+@
+
+In these new QC approaches the separation of samples observed in PCA plot is observed again. Moreover, some samples has been marked to be an outlier. These samples will be specially followed after data normalization.
+\\
+Once all the analyses have been performed the different outlier–detection approaches are
+compared in order to decide whether or not an array should be removed. Usually only arrays
+that are called outliers by more than one criteria has to be considered to rule out, although this depends on every specific study. \textbf{We concluded that it is not necessary to exclude any samples from the study before normalization.}
+\\
+
+\subsection{Preprocessing: Normalization and Filtering}
+In order to make the data comparable as well as to remove technical biases the arrays have
+been prepossessed using the RMA method (\cite{Gentleman:2005} and \cite{Irizarry2003}).
+In addition to that, the exon level values have been averaged to yield one expression value
+per gene.
+
+<<normalization.rma,echo=FALSE,results='hide'>>=
+eset_rma <- rma(rawData)
+@
+\\
+Some QC checks are performed again once the data has been normalized. You will be able to find more figures, apart from those that are shown here, about quality controls in the \texttt{QCNormData.pdf} file in the \texttt{Results} folder.
+
+
+<<normBoxPlot,echo=FALSE,results='hide',message=FALSE, eval=TRUE>>=
+pdf(file.path(resultsDir,"BoxplotNorm.pdf"))
+  boxplot(eset_rma,main="Boxplot of Normalized data", names=sampleNames,
+          cex.axis=0.4, col=as.character(targets$colores),las=2)
+dev.off()
+@
+
+\begin{figure}
+ \centering
+ \includegraphics[scale=0.75]{results/BoxplotNorm.pdf}
+ \caption{Intensity distribution of the normalized data.}
+ \label{fig:normboxplot2}
+\end{figure}
+
+
+Once the data has been normalized, the intensity distribution (figure \ref{fig:normboxplot2}) of the samples is very similar.
+\clearpage
+
+The PCA is performed again with the normalized data (figure \ref{fig:normpca2}).
+
+<<plotPCA2DNorm,echo=FALSE,results='hide',message=FALSE, eval=FALSE>>=
+pdf(file.path(resultsDir,"PCANorm.pdf"))
+   plotPCA3(exprs(eset_rma), labels = sampleNames, factor = grupos, 
+         title="Normalized data", scale = FALSE,
+         colores = colorPCA, size = 2.5)
+dev.off()
+
+pdf(file.path(resultsDir,"PCANormGenotype.pdf"))
+   plotPCA3(exprs(eset_rma), labels = sampleNames, factor = targets$Genotype, 
+         title="Normalized data", scale = FALSE,
+         colores = c("blue", "red"), size = 2.5)
+dev.off()
+
+pdf(file.path(resultsDir,"PCANormTime.pdf"))
+   plotPCA3(exprs(eset_rma), labels = sampleNames, factor = targets$Time, 
+         title="Normalized data", scale = FALSE,
+         colores = c("blue", "red", "green", "brown"), size = 2.5)
+dev.off()
+@
+
+\begin{figure}
+ \centering
+ \includegraphics{results/PCANorm.pdf}
+ \caption{PCA analysis for normalized data.}
+ \label{fig:normpca2}
+\end{figure}
+
+The first component of PCA for normalized data accounts for a 24.6\% of the total variance in the samples. Second component accounts for 9.7\% of the total variability. The samples are separated again by the first component depending of the  \texttt{Time} factor, but now the samples on the right of the plot, are those from the times \texttt{6M} and \texttt{18M}, and on the left are located the samples from the times \texttt{12M} and \texttt{24M}. Second component of PCA separates samples from times \texttt{6M} and \texttt{24M} on the bottom, and 
+samples from times \texttt{12M} and \texttt{18M} on the top. Like in raw data, samples are grouped in general first depending of the \texttt{Time} factor and second, depending on the \texttt{Genotype} factor. 
+In the results folder, a PCA colored by \texttt{Genotype} factor has been saved. There, no clear clustering of samples has been observed. In the same way, another PCA with the samples colored by \texttt{Time} factor has been saved. This time, a clear association of the samples clustering is observed depending on this factor. 
+
+<<distAnalisis2, echo=FALSE,results='hide', eval=FALSE>>=
+manDist <-  dist(t(exprs(eset_rma)))
+clust.euclid.average <- hclust(dist(t(exprs(eset_rma))),method="average")
+
+pdf(file.path(resultsDir,"QCRNormData.pdf"))
+ heatmap(as.matrix(manDist),  col=heat.colors(16),labCol = sampleNames,
+          labRow = sampleNames)
+ plot(clust.euclid.average, labels=sampleNames,
+      main="Hierarchical clustering of samples", hang=-1,cex=0.5)
+dev.off()
+@
+
+<<arrayQuality2,  warning=FALSE,echo=FALSE, eval=FALSE>>=
+arrayQualityMetrics(eset_rma, outdir = file.path(resultsDir, "QCDir.Norm"), force=TRUE)
+@
+\\
+\\
+\noindent \textbf{Conclusions of quality control of microarray data.}
+\\
+There are not any technical or objective reason to exclude any sample,  therefore \textbf{all samples has been included for differential expression analysis}.
+
+<<savedata,echo=FALSE,results='hide'>>=
+save(rawData, eset_rma, targets, file=file.path(dataDir, "normData.Rda"))
+@

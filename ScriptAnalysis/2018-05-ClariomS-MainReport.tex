@@ -1,0 +1,69 @@
+\documentclass{article}
+\usepackage{underscore}
+\usepackage[utf8]{inputenc}
+\usepackage{longtable}
+\usepackage{rotating}
+\usepackage[margin=1in]{geometry}
+\usepackage[english]{babel}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{fancyvrb}
+\usepackage{lscape}
+\usepackage{anysize}
+\usepackage{fancyhdr}%encabezados y pies de página
+\usepackage{color}
+
+\lfoot[a1] {\tiny\textcolor{violet}{VHIR-UEB-FOR-013v.01}}
+
+\lhead{\includegraphics[width=.28\textwidth]{./images/UEBblanc.jpg}}
+\rhead{\leftmark}
+
+\pagestyle{fancy}
+
+
+\marginsize{3.0cm}{3.5cm}{2.5cm}{2.5cm}
+\renewcommand{\baselinestretch}{1.3} % per canviar interlineado
+\renewcommand*\footnoterule{}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=violet
+}
+
+\begin{document}
+
+\title{\begin{figure}[htbp]
+       \centering
+       \includegraphics[width=60mm]{images/UEBblanc.jpg}
+       \includegraphics[width=35mm]{images/IR.jpg}
+       \end{figure}
+       \vspace{1cm}
+       Differential expression study in mice with amyloid beta\\
+       protein blood vessels deposits in four time points\\
+       {\normalsize Customer: Mar Hernandez - UEB Study Id: D1957
+        \footnotetext{\footnoterule{\tiny\textcolor{violet}{VHIR-UEB-FOR-013v.01}}}
+        }}\\
+\author{Ricardo Gonzalo, Ferran Brians\'{o} and Alex S\`{a}nchez \\ 
+        Unitat d'Estad\'{i}stica i Bioinform\`{a}tica \\
+        Vall d'Hebron Institut de Recerca (VHIR)} \\
+
+\bibliographystyle{plain}
+
+\hyperbaseurl{.}
+
+\setkeys{Gin}{width=0.7\textwidth}
+\maketitle
+
+\newpage
+\tableofcontents
+\listoffigures
+\listoftables
+
+\include{2018-05-MarHernandez-VHIR-D1957-ClariomS-Load-QC-Norm} 
+\include{2018-05-MarHernandez-VHIR-D1957-ClariomS-DEA}
+\include{2018-05-MarHernandez-VHIR-D1957-ClariomS-MC}
+\include{2018-05-MarHernandez-VHIR-D1957-ClariomS-ABS}
+\bibliography{microarrays}
+
+\end{document}

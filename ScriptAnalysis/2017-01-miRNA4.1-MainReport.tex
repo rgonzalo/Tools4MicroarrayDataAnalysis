@@ -1,0 +1,72 @@
+\documentclass{article}
+\usepackage{underscore}
+\usepackage[utf8]{inputenc}
+\usepackage{longtable}
+\usepackage[margin=1in]{geometry}
+\usepackage[english]{babel}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{fancyvrb}
+\usepackage{lscape}
+\usepackage{anysize}
+\usepackage{fancyhdr}%encabezados y pies de página
+\usepackage{color}
+
+\lfoot[a1] {\tiny\textcolor{violet}{VHIR-UEB-FOR-013v.01}}
+
+\lhead{\includegraphics[width=.28\textwidth]{./images/UEBblanc.jpg}}
+\rhead{\leftmark}
+
+\pagestyle{fancy}
+
+
+\marginsize{3.0cm}{3.5cm}{2.5cm}{2.5cm}
+\renewcommand{\baselinestretch}{1.3} % per canviar interlineado
+\renewcommand*\footnoterule{}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=violet
+}
+
+\begin{document}
+
+\title{\begin{figure}[htbp]
+       \centering
+       \includegraphics[width=60mm]{images/UEBblanc.jpg}
+       \includegraphics[width=35mm]{images/IR.jpg}
+       \end{figure}
+       \vspace{1cm}
+       Differential miRNA expression in mouse's brain\\
+       after an induced ischemia episode.\\
+       {\normalsize Customer: Alba Simats - UEB Study Id: B3296
+        \footnotetext{\footnoterule{\tiny\textcolor{violet}{VHIR-UEB-FOR-013v.01}}}\\
+       }}\\
+\\
+\\
+\author{Ricardo Gonzalo, Ferran Brians\'{o} and Alex S\`{a}nchez \\ 
+        Unitat d'Estad\'{i}stica i Bioinform\`{a}tica \\
+        Vall d'Hebron Institut de Recerca (VHIR)} \\
+
+\bibliographystyle{plain}
+
+\hyperbaseurl{.}
+
+\setkeys{Gin}{width=0.7\textwidth}
+\maketitle
+
+\newpage
+\tableofcontents
+\listoffigures
+\listoftables
+
+\include{2017-01-AlbaSimats-B3296-Load-QC-Norm} 
+\include{2017-01-AlbaSimats-B3296-DEA}
+\include{2017-01-AlbaSimats-B3296-MC}
+
+
+\bibliography{microarrays}
+
+
+\end{document}

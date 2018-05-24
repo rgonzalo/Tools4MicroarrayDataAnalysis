@@ -1,0 +1,277 @@
+
+\section{Introduction and Study Organization}
+Researches are interested in study patients who have suffered a lung transplant few years ago. Some of these patients respond well to the transplant but other ones not.
+\\
+The experimental conditions considered in this analysis are:
+\begin{itemize}
+  \item Condition \texttt{Dysfunction}:
+  \begin{enumerate}
+    \item 20 samples from dysfunction group (CTL)
+    \item 20 samples from NO dysfunction group (Case)
+  \end{enumerate}
+\end{itemize}
+\\
+The analysis has been performed following the usual “pipeline” for microarray data
+analysis. Roughly speaking each of the items below corresponds to one section in the analysis report:
+\begin{enumerate}
+  \item Quality control: Do we have good data? Should any slides be rejected?
+  \item Data preprocess: Summarization, filtering and normalization.
+  \item Selection of genes differentially expressed for each set of conditions.
+  \item Search for gene expression patterns and grouping of samples.
+  \item Annotation of results and analysis of biological significance.
+\end{enumerate}
+
+The statistic analysis has been performed using the statistical language  ``R''( \textttt{\Sexpr{R.Version()$versi}, Copyright (C) 2015 The R Foundation for Statistical Computing} ), and the libraries developed for the microarray analysis in the Bioconductor Project (\url{www.bioconductor.org}). More details about the methods used in these analysis could be  found in \cite{Gentleman:2005}.
+
+
+\subsection{Objetive and Study Questions} \label{objectives}
+
+The \textbf{main objective} of this study is to find differentially expressed genes between patients who have suffered a dysfunction of the lung transplant and patients who have not had dysfunction.
+
+\noindent This objective may be summarized in the following questions, as described in the proposal:
+\begin{itemize}
+\item Effect of \texttt{Dysfunction} condition:
+  \begin{enumerate}
+    \item Caso vs CTL = Caso - CTL (paired test)
+    \item Caso vs CTL = Caso - CTL (unpaired test)
+  \end{enumerate}
+\end{itemize}
+
+\noindent The patients included in the study are matched for some variables like sex, age and illness. The researcher have provided to UEB with a .xlsx file with paired patients. Nevertheless, the researches are aware about the difficulty of matching patients, so the study will be performed using paired statistical tests. Besides, a sensibility analysis will be performed in paralel, with an unpaired statistical tests for matching errors control.
+
+\section{Data and Experimental design}
+Data for the analysis has been obtained from the Genomic's UAT core facility at VHIR, where the microarrays (miRNA 4.0 array) were performed. The study is based on 40 samples. Table \ref{targettable} shows the allocation of each sample to each experimental condition:
+
+<<setDirs,echo=FALSE>>=
+mainDir <-getwd()
+workingDir <- mainDir
+dataDir <-file.path(mainDir, "dades")
+celDir <-  file.path(workingDir, "celfiles")
+celDir1 <-  file.path(celDir, "celfiles1")
+celDir2 <-  file.path(celDir, "celfiles2")
+resultsDir <- file.path(workingDir, "results")
+imagesDir<-file.path(mainDir,"images")
+@
+
+<<options,echo=FALSE>>=
+require(knitr)
+opts_chunk$set(fig.path = imagesDir, echo=FALSE, message=FALSE,warnings = FALSE )
+options(warn=-1)
+@
+
+<<loadpackages, echo=FALSE, results='hide',message=FALSE>>=
+library(xtable)
+library(Biobase)
+library(oligo)
+library(arrayQualityMetrics)
+library(devtools)
+library(pd.mirna.4.0)
+library(ggplot2)
+library(ggrepel)
+@
+
+
+<<phenoData1, echo=FALSE, results='asis'>>=
+targets <-read.table(file.path(dataDir,"targets.SG0938.txt"), header = TRUE) 
+
+x.big<-xtable(targets,caption="Targets file showing samples and covariates",label="targettable")
+print(x.big,tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+
+\section{Results}
+\subsection{Quality Control}
+Different types of quality controls (QC) have been performed in this analysis. It is important to do this QC before and after array normalization to check if all the arrays are suitable for normalization process, and check if normalized data is appropriated for differential expression analysis.
+Besides, a comprehensive report and some more figures of quality control,  are provided for the raw data \texttt{(QCDir.raw/index.html)} and for the normalized data \texttt{(QCDir.norm/index.html)} to help the user to understand whether a particular array can be considered as an outlier.
+
+<<readcels, echo=FALSE,results='hide'>>=
+#read.celfiles(filenames = fileNames, verbose = TRUE)
+celFiles<-list.celfiles(celDir,full.names=TRUE)
+rawData<-read.celfiles(celFiles)
+@
+
+<<preajustes, echo=FALSE,results='hide'>>=
+colores <- as.character(targets$Colores)
+grupos <- targets$Grupo
+numSamples <- nrow(targets)
+sampleNames <-targets$ShortName
+#forma2pca<-c(15,16,17,18,rep(c(15,16),2),rep(c(17,18),2),rep(c(15,16),2),17,18, rep(c(15,16),2))
+@ 
+
+Figure \ref{fig:boxplot} shows a boxplot representing summaries of the signal intensity distributions of the arrays. Typically, one expects the boxes to have similar positions and widths. If the distribution of an array is very different from the others, this may indicate a problem.
+  
+
+<<boxplot2pdf,results='hide',message=FALSE>>=
+pdf(file.path(resultsDir,"BoxplotRaw.pdf"))
+boxplot(rawData, cex.axis=0.6, col=colores,  las=2, names=sampleNames, main="Boxplot for arrays intensity: Raw data")
+dev.off()
+@ 
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[scale=0.50]{results/BoxplotRaw.pdf}
+  \caption{Intensity distribution of the arrays for raw data}
+  \label{fig:boxplot}
+\end{figure}
+
+As shown in figure \ref{fig:boxplot}, the intensity distribution of the arrays is the intensity distribution of the arrays is moderately variable, as expected for raw data.\\
+\\
+Figure \ref{fig:PCA2D} shows a scatterplot of the arrays along the first two principal components. Principal components Analysis (PCA) is a dimension reduction technique that may be used to represent the values of an expression matrix in two (or three) dimensions. The plot is constructed in such a way that “similar” arrays should appear together in the plot, so that if a sample appears near others that are not considered similar it can be suspected the presence of some kind of technical problems such as batch effects, mislabelling of samples, etc.
+
+<<plotPCA, echo=FALSE>>=
+plotPCA2 <- function ( datos, labels, factor,title,scale) {
+  data <- prcomp(t(datos),scale=scale)
+  #ajustos del gràfic
+  dataDf <- data.frame(data$x)
+  Grupo <- factor
+  loads <- round(data$sdev^2/sum(data$sdev^2)*100,1)
+  # the graphic
+  p1 <- ggplot(dataDf,aes(x=PC1, y=PC2)) +
+    theme_classic() +
+    geom_hline(yintercept = 0, color = "gray70") +
+    geom_vline(xintercept = 0, color = "gray70") +
+    geom_point(aes(color = Grupo), alpha = 0.55, size = 3) +
+    coord_cartesian(xlim = c(min(data$x[,1])-5,max(data$x[,1])+5))
+  # the graphic with ggrepel
+  p1 + geom_text_repel(aes(y = PC2 + 0.25, label = labels)) + 
+    labs(x = c(paste("PC1",loads[1],"%")),y=c(paste("PC2",loads[2],"%"))) +  
+    ggtitle(paste("Principal Component Analysis for:",title,sep=" "))+ 
+    theme(plot.title = element_text(hjust = 0.5))
+}
+@ 
+
+
+<<plotPCA2Dpdf,results='hide',message=FALSE>>=
+pdf(file.path(resultsDir,"PCAraw.pdf"))
+plotPCA2(exprs(rawData),labels =sampleNames, factor=grupos,title="Grupo",scale = FALSE )
+dev.off()
+@
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.60]{results/PCAraw.pdf}
+\caption{Principal component 2D plot of initial samples for raw data.}
+\label{fig:PCA2D}
+\end{figure}
+
+In this study, first component of the PCA accounts for 41.4\% of the total variability, and the second component for 20.6\% of the remaining variability. Samples \texttt{P16.Control.9} and \texttt{P05.Control.3} are separated from the main group of the samples, one in the left upper corner and the other on the bottom right corner. Besides, a group of four samples (\texttt{P30.Control6}, \texttt{P12.Caso.4}, \texttt{P13.Control.8} and \texttt{P07.Control.4}) are separated from the main group of samples (which is located in the left bottom corner).
+\\
+
+Three more approaches to check the quality of the arrays, not shown here but present in the \texttt{Results} folder have been performed. The first one is the Heatmap depicting the distances between arrays, another one the hierarquical clustering (the two plots are in the \texttt{QCDataRaw.pdf} file) and the quality assesment performed by the ArrayQualityMetrics Bioconductor package \cite{AQM:2009} (\texttt{QCDir.Raw}). In the heatmap, the color scale is chosen to cover the range of distances encountered in the dataset. Patterns in this plot can indicate some kind of clustering (grouping) of the arrays which may be attributable either to biological, experimental or technical effects. Usually distances between arrays should be very similar, so when one array is very different from the rest it is identified as an outlier. In hierarquical clustering, distances between arrays, as a measure of similarity, are calculated and ploted into a graph to valorate how the sample are grouped among them.
+\\
+
+<<distAnalisis, echo=FALSE,results='hide'>>=
+manDist <-  dist(t(exprs(rawData)))
+clust.euclid.average <- hclust(manDist,method="average")
+
+pdf(file.path(resultsDir,"QCRawData.pdf"))
+heatmap (as.matrix(manDist),  col=heat.colors(16))  
+plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering of samples",  hang=-1)
+dev.off()
+@
+
+<<arrayQuality, warning=FALSE,echo=FALSE,eval=FALSE>>=
+length.path <- function(x) length(unclass(x))
+arrayQualityMetrics(rawData, outdir = file.path(resultsDir, "QCDir.Raw"), force=TRUE)
+@
+\\
+Similar group of samples is observed in hierarquical clustering as observed in PCA plot (\ref{fig:PCA2D})
+
+Once all the analyses have been performed the different outlier–detection approaches are
+compared in order to decide whether or not an array should be removed. Usually only arrays that are called outliers by more than one criteria are considered to rule out, although this depends on every specific study. Quality control in raw data has detected some samples in PCA plot and hierarquical clustering that not groups with the others. Nevertheless, \textbf{We have decided to accept all the samples for normalization process} and follow these samples after normalization process.
+\\
+
+\subsection{Preprocessing: Normalization and Filtering}
+In order to make the data comparable as well as to remove technical biases the arrays have been preprocessed using the RMA method (\cite{Irizarry2003} and \cite{Gentleman:2005}).
+
+<<normalization.rma,echo=FALSE,results='hide'>>=
+eset_rma <- rma(rawData)
+@
+
+Some QC checks are performed again once the data has been normalized. You will be able to find more figures, apart from shown here, about quality controls in the (\texttt{QCNormData.pdf} file in the \texttt{Results} folder.
+
+<<normBoxPlot,echo=FALSE,results='hide',message=FALSE>>=
+pdf(file.path(resultsDir,"BoxplotNorm.pdf"))
+boxplot(eset_rma,main="Boxplot of Normalized data", names=sampleNames, cex.axis=0.6, col=colores,las=2)
+dev.off()
+@
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.40]{results/BoxplotNorm.pdf}
+\caption{Intensity distribution of the arrays for normalized data}
+\label{fig:normboxplot2}
+\end{figure}
+
+Once the data has been normalized, the intensity distribution (\ref{fig:normboxplot2}) of the samples is very similar, and no great differences are observed among the samples. It looks like if normalization process has corrected the dissimilarity observed in the same plot before (\ref{fig:boxplot}).
+\\
+The PCA is performed again with the normalized data (\ref{fig:normpca2}).
+\newpage
+
+<<plotPCA2Dpdfnorm,results='hide',message=FALSE>>=
+pdf(file.path(resultsDir,"PCAnorm.pdf"))
+plotPCA2(exprs(eset_rma),labels =sampleNames, factor=grupos,title="Grupo",scale = FALSE )
+dev.off()
+@
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.60]{results/PCAnorm.pdf}
+\caption{Principal component 2D plot of initial samples for normalized data.}
+\label{fig:normpca2}
+\end{figure}
+
+Now the first component of the PCA accounts for a 23.1\% of the total variance in the samples and the second component for a 11\% of the remaining variance. First component tends to separate \texttt{Control} group on the left of the plot and \texttt{Caso} group on the right. Few samples of \texttt{Control} allocates with the \texttt{Caso} group and viceversa. Sample \texttt{P05.Control.3} is on the top right of the plot. Besides, no clear association in the plot of 'paired samples' is observed.
+
+<<distAnalisis2, echo=FALSE,results='hide',eval=FALSE>>=
+manDist <-  dist(t(exprs(eset_rma))) 
+clust.euclid.average <- hclust(dist(t(exprs(eset_rma))),method="average")
+
+pdf(file.path(resultsDir,"QCNormData.pdf"))
+heatmap (as.matrix(manDist),  col=heat.colors(16))  
+plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering of samples",  hang=-1)
+dev.off()
+@
+
+<<arrayQuality2,  warning=FALSE,echo=FALSE,eval=FALSE>>=
+length.path <- function(x) length(unclass(x)) #això si falla el qualitymetrics
+arrayQualityMetrics(eset_rma, outdir = file.path(resultsDir, "QCDir.Norm"), 
+                   force=TRUE)
+@
+
+
+As seen in diferents quality approaches for normalized data, sample \texttt{P05.Control.3} differs from the others. Moreover, the RNA quality of this sample is bad as observed in its RIN value (N/A). Therefore, we have decided to \textbf{exclude sample \texttt{P05.Control.3} for differential expression analysis}. Consequently, sample \texttt{P06.Caso.3} will also be excluded for paired comparison. RMA normalization and PCA analysis is performed again without sample \texttt{P05.Control.3} and another without samples \texttt{P05.Control.3} and \texttt{P06.Caso.3} for the paired analysis.
+
+<<targets2,echo=FALSE,results='hide'>>=
+targets1 <- targets[- which(targets$ShortName == "P05.Control.3"),] #solo quitando p05
+targets2 <- targets1[- which(targets1$ShortName == "P06.Caso.3"),] #quitando p05 y p06
+
+celFiles1<-list.celfiles(celDir1,full.names=TRUE)
+rawData1<-read.celfiles(celFiles1)
+celFiles2<-list.celfiles(celDir2,full.names=TRUE)
+rawData2<-read.celfiles(celFiles2)
+
+eset_rma1 <- rma(rawData1)
+eset_rma2 <- rma(rawData2)
+@
+
+
+<<plotPCA2Dpdfnorm2,results='hide',message=FALSE>>=
+pdf(file.path(resultsDir,"PCAnorm2.pdf"))
+plotPCA2(exprs(eset_rma1),labels = targets1$ShortName, factor = targets1$Grupo, 
+         title="Grupo",scale = FALSE )
+dev.off()
+@
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.60]{results/PCAnorm2.pdf}
+\caption{Principal component 2D plot of samples without \texttt{P05.Control.3} for normalized data.}
+\label{fig:normpca3}
+\end{figure}
+
+Now the first component of the PCA (\ref{fig:normpca3}) accounts for a 20.7\% of the total variance in the samples and the second component for a 7.6\% of the remaining variance. First component separates \texttt{Control} group on the left of the plot and \texttt{Caso} group on the right. Few samples of \texttt{Control} allocates with the \texttt{Caso} group and viceversa.
+
+
+<<savedata,echo=FALSE,results='hide'>>=
+save(rawData, eset_rma, rawData1, eset_rma1,rawData2, eset_rma2,targets,targets1,targets2, file=file.path(dataDir,"normData.Rda"))
+@
+

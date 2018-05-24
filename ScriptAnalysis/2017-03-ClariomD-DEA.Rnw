@@ -1,0 +1,348 @@
+
+\textbf{Data filtering}
+<<setDirs,echo=FALSE>>=
+mainDir <-getwd()
+workingDir <- mainDir
+dataDir <-file.path(mainDir, "dades")
+celDir <-  file.path(workingDir, "celfiles")
+celDir2 <-  file.path(workingDir, "celfiles2")
+resultsDir <- file.path(workingDir, "results")
+imagesDir<-file.path(mainDir,"images")
+@
+
+<<loadlib,echo=FALSE,results='hide',message=FALSE>>=
+library(genefilter)
+library(clariomdhumanprobeset.db)
+library(clariomdhumantranscriptcluster.db)
+library(limma)
+library(ReportingTools)
+library(lattice)
+library(xtable)
+library(annotate)
+library(annaffy)
+library(calibrate)
+@
+
+<<options,echo=FALSE>>=
+require(knitr)
+opts_chunk$set(fig.path = imagesDir, echo=FALSE, message=FALSE,warnings = FALSE )
+options(warn=-1)
+@
+
+<<loadData,echo=FALSE>>=
+load("normData.Rda")
+@
+
+Usually, in order to increase statistical power and reduce unnecessary noise, some genes that cannot be considered to be either expressed or differentially expressed are removed. To be sure that no genes that is differentially expressed are removed, first of all the standard deviations of all genes in the array are calculated, ordered and ploted. If a gene have change due to experimental conditions, one expect that the standard deviation among samples is high. Standard deviations of genes without changes among experimental conditions, will be very low.
+
+<<SDplot,echo=FALSE,results='hide',message=FALSE>>=
+var <- apply(exprs(eset_rma),1,sd)
+var <- var[order(var)]
+pdf(file.path(resultsDir,"SDplot.pdf"))
+plot(1:length(var),var, xlab="features",ylab="Standard deviation",las=2)
+abline(v=0.8*length(var),lty=3, col="red")
+dev.off()
+@
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.5]{results/SDplot.pdf}
+  \caption{Standard deviation of all probesets in the array. Red line marks 80\% of all probesets.}
+  \label{sdplot}
+\end{figure}
+
+In the figure \ref{sdplot} the genes with a high standard deviation (genes that change due to experimental conditons) are below of 20\% of the total probesets in the array. 
+In this study, those genes whose standard deviation was below \textbf{the 80 percentile} of all standard deviations were removed (a very conservative cutoff has been selected to be sure no diferentially expressed gene is removed). %Besides those genes without a valid \testtt{entrezID} and a valid \testtt{GO Annotation} were also excluded.
+These filters have been applied to all the groups of specific questions, setting a list of \textbf{4.851 genes to be included in the analysis}.
+
+<<filtraje,echo=FALSE,results='hide'>>=
+#per poder instal.lar el paquet d'annotacions "clariomsmousehttranscriptcluster.db" he tingut que actualitzar manualment(baixar el tar.gz) dels següents paquets: genefilter,biostrings,summarizedExperiment,Xvector,genomicRanges,oligoclasses,org.mm.eg.db, biocgenerics,IRanges,s4vectors,annotationdbi,clariomsmousehttranscriptcluster.db
+
+#es canvia el paquet d'anotacions de l'objecte eset_rma
+annotation(eset_rma) <- "clariomdhumantranscriptcluster.db"
+
+##Fem primer un filtratge per variabilitat. Queden 9352
+filtered <- nsFilter(eset_rma, require.entrez=TRUE,
+         var.func=IQR, remove.dupEntrez=TRUE, require.GOBP=FALSE, 
+         require.GOCC=FALSE, require.GOMF=FALSE,
+         var.cutoff=0.80, var.filter=TRUE,
+         filterByQuantile=TRUE, feature.exclude="^AFFX")
+
+
+dim(filtered$eset) #4851 30
+
+eset_filtered <- filtered$eset
+@ 
+
+
+<<writeNormalized,echo=FALSE>>=
+#shortNames<- paste(pData(eset_rma)$Group, pData(eset_rma)$SampleIDs,sep=".")
+#sum(rownames(pData(eset_filtered))!=colnames(exprs(eset_filtered)))
+#colnames(exprs(eset_filtered))<- colnames(exprs(eset_rma))<- shortNames
+write.csv2(exprs(eset_rma), file.path(resultsDir, "Normalized.All.csv"))
+write.csv2(exprs(eset_filtered), file.path(resultsDir, "Normalized.Filtered.csv"))
+save(eset_rma, eset_filtered,file="FilteredData.Rda")
+@ 
+
+
+\subsection{Selection of Differentially Expressed Genes}
+As previously commented (\ref{objectives}) the goal of the study is to find differentially expressed genes between brain samples from patients that suffered distinct frontotemporal demential conditions and controls. To achieve this main objective the following comparisons will be performed:
+\begin{enumerate}
+    \item Controls vs all frontotemporal dementia samples = (FT.A + FT.A.C9) - CTL
+    \item Controls vs distinct frontotemporal dementia sample groups:
+	\begin{enumerate}
+		\item Controls vs FTLD-ALS dementia samples = FT.A - CTL
+		\item Controls vs FTLD-ALS-C9 dementia samples = FT.A.C9 - CTL
+	\end{enumerate}
+    \item FTLD-ALS vs FTLD-ALS-C9  dementia samples = FT.A.C9 - FT.A
+\end{enumerate}
+
+\\
+The analysis to select differentially expressed genes has been
+based on adjusting a linear model with empirical bayes moderation of the variance. This is a technique similar to ANOVA specifically developed for microarray data
+analysis by \cite{Smyth:2004}.
+\\
+Each comparison yields a list of genes sorted from most to least differentially expressed
+genes which is called generically a top table. The resulting top tables are presented in an html file  with dynamic links to the gene identifiers. Besides for each comparisons the corresponding Volcano Plot and a comma-separated file are provided in the \texttt{results} folder.
+\\
+
+<<setContrasts, echo=FALSE,results='hide'>>=
+#se lee de nuevo el targets con una nueva columna "Grupo2" donde se han "agrupado" todas las muestra con demencia, para una de las comparaciones.
+targets <-read.table(file.path(dataDir,"targets.PA0481.txt"), 
+  header = TRUE, row.names = 1)
+
+grupo <- as.factor(targets$Grupo)
+grupo2 <- as.factor(targets$Grupo2)
+
+##Comparaciones 2.1, 2.2, 3 (segun propuesta)
+design <- model.matrix( ~0 + grupo) 
+colnames(design) <- c("CTL","FT.A","FT.A.C9")
+#comprobación de que el diseño está bien
+dim(design) #30 3
+qr(as.matrix(design))$rank #3
+is.fullrank(as.matrix(design)) #TRUE
+#si en la contrastmatrix hay tres grupos, en las gráficas del reporting tools salen los tres grupos aunque estés comparando dos.
+contrastM1 <- makeContrasts(FT.AvsCTL = FT.A - CTL,
+                            FT.A.C9vsCTL = FT.A.C9 - CTL,
+                            FT.A.C9vsFT.A = FT.A.C9 - FT.A,
+                            levels=design)
+print(contrastM1)
+
+##Comparación 1 (segun propuesta)
+design2 <- model.matrix( ~ 0 + grupo2)        
+colnames(design2)<-c("CTL","FTA")
+#comprobación de que el diseño está bien
+dim(design2) #30 2
+qr(as.matrix(design2))$rank #2
+is.fullrank(as.matrix(design2)) #TRUE
+
+contrastsM2 <- makeContrasts(DementiavsControls = FTA - CTL,
+                             levels = design2)
+print(contrastsM2)
+@
+
+<<linearmodelfit,echo=FALSE>>=
+fit1 <- lmFit(eset_filtered, design)
+fit.main1 <- contrasts.fit(fit1, contrastM1)
+fit.main1 <- eBayes(fit.main1)
+
+fit2 <- lmFit(eset_filtered, design2)
+fit.main2 <- contrasts.fit(fit2, contrastsM2)
+fit.main2 <- eBayes(fit.main2)
+@
+
+<<topTables, echo=FALSE, results='hide',message=FALSE>>=
+##Comparaciones 2.1, 2.2, 3 (segun propuesta)
+#coef=1
+topTab_FT.AvsCTL <- topTable (fit.main1, number=nrow(fit.main1), coef="FT.AvsCTL", adjust="fdr")
+deReport <- HTMLReport(shortName = 'TopTab_FT.AvsCTL' ,
+                       title = 'Analysis of Differential Expression for: TopTab_FT.AvsCTL',
+                       reportDirectory = "./results")
+publish(fit.main1, deReport, eSet=eset_filtered, factor= grupo, coef="FT.AvsCTL", n=100,pvalueCutoff=1)
+finish(deReport)
+
+#coef=2
+topTab_FT.A.C9vsCTL <- topTable (fit.main1, number=nrow(fit.main1), coef="FT.A.C9vsCTL", adjust="fdr")
+deReport <- HTMLReport(shortName = 'TopTab_FT.A.C9vsCTL' ,
+                       title = 'Analysis of Differential Expression for: TopTab_FT.A.C9vsCTL',
+                       reportDirectory = "./results")
+publish(fit.main1, deReport, eSet=eset_filtered, factor= grupo, coef="FT.A.C9vsCTL", n=100,pvalueCutoff=1)
+finish(deReport)
+
+#coef=3
+topTab_FT.A.C9vsFT.A <- topTable (fit.main1, number=nrow(fit.main1), coef="FT.A.C9vsFT.A", adjust="fdr")
+deReport <- HTMLReport(shortName = 'TopTab_FT.A.C9vsFT.A' ,
+                       title = 'Analysis of Differential Expression for: TopTab_FT.A.C9vsFT.A',
+                       reportDirectory = "./results")
+publish(fit.main1, deReport, eSet=eset_filtered, factor= grupo, coef="FT.A.C9vsFT.A", n=100,pvalueCutoff=1)
+finish(deReport)
+
+##Comparación 1 (segun propuesta)
+topTab_DementiavsControls <- topTable (fit.main2, number=nrow(fit.main2), coef="DementiavsControls", adjust="fdr")
+deReport <- HTMLReport(shortName = 'TopTab_DementiavsControls' ,
+                       title = 'Analysis of Differential Expression for: TopTab_DementiavsControls',
+                       reportDirectory = "./results")
+publish(fit.main2, deReport, eSet=eset_filtered, factor= grupo2, coef="DementiavsControls", n=100,pvalueCutoff=1)
+finish(deReport)
+@
+
+The results in a glance of the number of differentially expressed genes in each comparisons at different thresholds, are shown in table \ref{tab:numgeneschanged}:
+
+
+<<numsgenechange,echo=FALSE>>=
+################################################################################
+####################
+##### geneSelectable
+####################
+##### topTab: Toptable en format '.csv'
+##### adj0: p.valor adjustat pel qual filtrar (de normal, 0.01)
+##### adj1: segon p.valor adjustat pel qual filtrar (de normal, 0.05)
+##### adj2: tercer p.valor adjustat pel qual filtrar (de normal, 0.25)
+##### P1: p.valor pel qual filtrar (de normal, 0.01)
+##### P2: segon p.valor pel qual filtrar (de normal, 0.05)
+################################################################################
+genesSelectable <- function (topTab, adj0, adj1, adj2, P1, P2,FC=0)
+{
+  upBelowB <- sum(topTab$B > 0  & topTab$t > 0 & abs(topTab$logFC) > FC)
+  downBelowB <- sum(topTab$B > 0  & topTab$t < 0 & abs(topTab$logFC) > FC)
+  
+  upBelowAdj0 <- sum(topTab$adj.P.Val < adj0 & topTab$t > 0 & abs(topTab$logFC) > FC)
+  downBelowAdj0 <- sum(topTab$adj.P.Val < adj0 & topTab$t < 0 & abs(topTab$logFC) > FC)
+  
+  upBelowAdj1 <- sum(topTab$adj.P.Val < adj1 & topTab$t > 0 & abs(topTab$logFC) > FC)
+  downBelowAdj1 <- sum(topTab$adj.P.Val < adj1 & topTab$t < 0 & abs(topTab$logFC) > FC)
+  
+  upBelowAdj2 <- sum(topTab$adj.P.Val < adj2 & topTab$t > 0 & abs(topTab$logFC) > FC)
+  downBelowAdj2 <- sum(topTab$adj.P.Val < adj2 & topTab$t < 0 & abs(topTab$logFC) > FC)
+  
+  upBelowP1 <- sum(topTab$P.Value < P1 & topTab$t > 0 & abs(topTab$logFC) > FC)
+  downBelowP1 <- sum (topTab$P.Value < P1 & topTab$t < 0 & abs(topTab$logFC) > FC)
+  
+  upBelowP2 <- sum(topTab$P.Value < P2 & topTab$t > 0 & abs(topTab$logFC) > FC)
+  downBelowP2 <- sum(topTab$P.Value < P2 & topTab$t < 0 & abs(topTab$logFC) > FC)
+  
+  return(c(upReg_B = upBelowB,downReg_B = downBelowB,
+           upRegAdj0.01 = upBelowAdj0, downRegAdj0.01 = downBelowAdj0,
+           upRegAdj0.05 = upBelowAdj1, downRegAdj0.05 = downBelowAdj1,
+           upRegAdj0.25 = upBelowAdj2, downRegAdj0.25 = downBelowAdj2,
+           upRegP0.01 = upBelowP1, downRegP0.01 = downBelowP1,
+           upRegP0.05 = upBelowP2, downRegP0.05 = downBelowP2))   
+}
+
+FT.AvsCTL <- genesSelectable(topTab_FT.AvsCTL,0.01,0.05,0.25,0.01,0.05)
+FT.A.C9vsCTL <- genesSelectable(topTab_FT.A.C9vsCTL,0.01,0.05,0.25,0.01,0.05)
+FT.A.C9vsFT.A <- genesSelectable(topTab_FT.A.C9vsFT.A,0.01,0.05,0.25,0.01,0.05)
+DementiavsControls <- genesSelectable(topTab_DementiavsControls,0.01,0.05,0.25,0.01,0.05)
+
+#fem el data frame i el csv
+numGenesChanged<-cbind.data.frame(FT.AvsCTL,FT.A.C9vsCTL,FT.A.C9vsFT.A,DementiavsControls)
+write.csv2(numGenesChanged,file.path(resultsDir,"numGenesChanged.csv"))
+@
+
+
+<<numgenetable,results='asis',echo=FALSE>>=
+x.big2 <- xtable(numGenesChanged,caption="Number of DEG for different thresholds",label="tab:numgeneschanged")
+print(x.big2, tabular.environment = 'longtable', floating = FALSE,size="tiny")
+@
+
+\subparagraph{p-values adjustment}
+
+If one wishes to have a statistically grounded criteria, the selection of the differentially expressed genes should be based on adjusted p-values (less than 0.01) or $B$ statistic (greater than 0). If these criteria yield too few genes, the table \ref{tab:numgeneschanged} indicates how many genes will yield a less restrictive criteria such as calling those differentially expressed genes with, for instance, adjusted p-values less than 0.25 or unadjusted p-values smaller than 0.05.\\
+
+<<anotagenes,echo=FALSE>>=
+#Information in the anotation package
+filteredgenes<-read.csv(file.path(resultsDir, "Normalized.Filtered.csv"),sep=";",header=TRUE)
+rownames(filteredgenes)<-filteredgenes$X
+genesSelected <- rownames(filteredgenes)
+at <- aafTableAnn(genesSelected, "clariomdhumantranscriptcluster.db")
+saveHTML (at, file.path(resultsDir, "Anotations.html"), 
+          "Annotations for filtered genes")
+saveText (at, file.path(resultsDir, "Anotations.csv"), header=TRUE)
+@
+
+<<toptable2csv,echo=FALSE>>=
+listofcomparisons<-list(topTab_FT.AvsCTL, topTab_FT.A.C9vsCTL, topTab_FT.A.C9vsFT.A, topTab_DementiavsControls)
+listofcomparisonsnames<-c("topTab_FT.AvsCTL", "topTab_FT.A.C9vsCTL", "topTab_FT.A.C9vsFT.A", "topTab_DementiavsControls") 
+
+##con este loop creamos los csv y tb unos dataframes que utilizaremos despues para las tables del informe
+for (i in 1:length(listofcomparisons))  {
+  topTab<-listofcomparisons[[i]]
+  EntrezsA <- getEG (rownames(topTab), annotation(eset_rma))
+  SymbolsA <- getSYMBOL (rownames(topTab), annotation(eset_rma))
+  otherNames = cbind.data.frame(SymbolsA, EntrezsA, topTab)
+  names(otherNames) = c("Gene Symbol", "Entrez", colnames(topTab))
+  assign(paste0("csv2",listofcomparisonsnames[i],sep=""),data.frame(otherNames))
+  write.csv2(otherNames, file.path(resultsDir, paste("ExpressAndTop_",listofcomparisonsnames[i],".csv",sep="")))
+}
+@
+
+\noindent In tables \ref{tab:top1}, \ref{tab:top2}, \ref{tab:top3} and \ref{tab:top4} the 10 more differentially expressed genes for each comparisons can be found.
+
+<<topGenes1, echo=FALSE, results='asis'>>=
+csvtable1<-xtable(csv2topTab_FT.AvsCTL[1:10,1:8],caption="10 genes more differentially expressed in comparison FT.AvsCTL",label="tab:top1")
+print(csvtable1, tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+
+<<topGenes2, echo=FALSE, results='asis'>>=
+csvtable2<-xtable(csv2topTab_FT.A.C9vsCTL[1:10,1:8],caption="10 genes more differentially expressed in comparison FT.A.C9vsCTL",label="tab:top2")
+print(csvtable2, tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+
+<<topGenes3, echo=FALSE, results='asis'>>=
+csvtable2<-xtable(csv2topTab_FT.A.C9vsFT.A[1:10,1:8],caption="10 genes more differentially expressed in comparison FT.A.C9vsFT.A",label="tab:top3")
+print(csvtable2, tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+
+<<topGenes4, echo=FALSE, results='asis'>>=
+csvtable2<-xtable(csv2topTab_DementiavsControls[1:10,1:8],caption="10 genes more differentially expressed in comparison DementiavsControls",label="tab:top4")
+print(csvtable2, tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+
+In figure \ref{fig:volcano} the Volcano plot for each comparison can be found:
+
+<<volcanos,echo=FALSE,results='hide',message=FALSE>>=
+listofcsv<-list(csv2topTab_FT.AvsCTL, csv2topTab_FT.A.C9vsCTL, csv2topTab_FT.A.C9vsFT.A, csv2topTab_DementiavsControls)
+listofcomparnames<-c("FT.AvsCTL", "FT.A.C9vsCTL", "FT.A.C9vsFT.A", "DementiavsControls") 
+
+##es fan tots els volcanos en un pdf per ficar al main report
+pdf(file.path(resultsDir,"Volcanos.pdf"),paper="special", width=6, height=6)
+par(mfrow=c(2,2))
+for(i in 1:length(listofcsv)){
+csv<-listofcsv[[i]]
+with(csv, plot(logFC, -log10(P.Value), pch=20, main=paste("Volcano plot for:",listofcomparnames[i], sep=" "), xlim=c(min(csv$logFC),max(csv$logFC))))
+abline(v=-0.5,lty=3)
+abline(v=0.5,lty=3)
+with(subset(csv, adj.P.Val<.1 & abs(logFC)>0.5), points(logFC, -log10(P.Value), pch=20, col="green"))
+with(subset(csv, adj.P.Val<.1 & abs(logFC)>0.5), textxy(logFC, -log10(P.Value), labs=Gene.Symbol, cex=.7,offset=0.3))
+}
+dev.off()
+par(mfrow=c(1,1))
+@
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.6]{results/Volcanos.pdf}
+  \caption{Volcano plots for each comparison. Genes with absolute logFC greater than 0.5 and adjusted pvalue lower than 0.1 are highlighted in green.}
+  \label{fig:volcano}
+\end{figure}
+
+<<volcanos2pdf,echo=FALSE>>=
+##es fan tots els volcanos pel results file
+for(i in 1:length(listofcsv)){
+csv<-listofcsv[[i]]
+file=paste("VolcanoPlot", listofcomparnames[i], ".pdf", sep="")
+pdf(file=file.path(resultsDir, file), paper="special", width=6, height=6)
+with(csv, plot(logFC, -log10(P.Value), pch=20, main=paste("Volcano plot for:",listofcomparnames[i], sep=" "), xlim=c(min(csv$logFC),max(csv$logFC))))
+abline(v=-0.5,lty=3)
+abline(v=0.5,lty=3)
+#abline(h=3.72,lty=3) #3.72 es el valor log(10) de 0.0001897 que es pvalue per un adj.pval de 0.05
+with(subset(csv, adj.P.Val<.1 & abs(logFC)>0.5), points(logFC, -log10(P.Value), pch=20, col="green"))
+with(subset(csv, adj.P.Val<.1 & abs(logFC)>0.5), textxy(logFC, -log10(P.Value), labs=Gene.Symbol, cex=.7,offset=0.3))
+dev.off()
+}
+@
+
+<<saveRDA,echo=FALSE>>=
+save(csv2topTab_FT.AvsCTL, csv2topTab_FT.A.C9vsCTL, csv2topTab_FT.A.C9vsFT.A, csv2topTab_DementiavsControls, eset_rma, eset_filtered, targets, topTab_FT.AvsCTL, topTab_FT.A.C9vsCTL, topTab_FT.A.C9vsFT.A, topTab_DementiavsControls, fit.main1, fit.main2, file="afterTopTabs.Rda")
+@
+

@@ -1,0 +1,241 @@
+
+<<setDirs,echo=FALSE>>=
+mainDir <-getwd()
+workingDir <- mainDir
+dataDir <-file.path(mainDir, "dades")
+celDir <-  file.path(workingDir, "celfiles")
+resultsDir <- file.path(workingDir, "results")
+imagesDir<-file.path(mainDir,"images")
+@
+
+<<options,echo=FALSE>>=
+require(knitr)
+opts_chunk$set(fig.path = imagesDir, echo=FALSE, message=FALSE,warnings = FALSE )
+options(warn=-1)
+@
+
+<<loadData2,echo=FALSE>>=
+load("afterTopTabs.Rda")
+@
+
+\subsection{Multiple comparisons between gene lists}
+In order to find genes which have been affected by two or more treatments, a multiple comparison analysis has been performed, which include a venn diagram. Common genes affected by the treatments, will appear in the intersection of the venn diagram plot. Associated to each group of multiple comparisons, venn diagram was plotted. Files \texttt{VennDiagram.XXX$_$YYY.pdf} and \texttt{multComp.XXX$_$YYY.csv}, where \texttt{XXXYYY} refers to every group of comparisons performed, can be found in the results directory.
+
+<<VDfunction,echo=FALSE,results='hide'>>=
+vennfrom2csv<-function(file1,name1,file2,name2,FC,pval) {
+  ##seleccionem els cutoffs
+  ##llista1
+  pass1 <- file1[which(file1$P.Value<pval & abs(file1$logFC)>FC),]
+  #dim(pass1)
+  ##llista2
+  pass2 <- file2[which(file2$P.Value<pval & abs(file2$logFC)>FC),]
+  #dim(pass2)
+
+  ####mirem que no entrades repetides per Affy ID i s'ajunten
+  #list1 <- as.character(sort(unique(pass1$X)))
+  #length(list1)
+  #list2 <- as.character(sort(unique(pass2$X)))
+  #length(list2)
+
+  list1 <- as.character(rownames(pass1))
+  #length(list1)
+  list2 <- as.character(rownames(pass2))
+  #length(list2)
+
+  list <- c(list1, list2)
+  #length(list)
+  list <- sort(unique(list))
+  #length(list)
+
+  ####es crea un data.frame que omplim de 0 i després de 1 si hi coexisteixen en les dues llistes
+  df <- data.frame(genes = list, l1 = rep(0,length(list)), l2 = rep(0,length(list)))
+  #head(df)
+
+  df$l1 <- as.numeric((df$genes %in% list1)==T)
+  df$l2 <- as.numeric((df$genes %in% list2)==T)
+
+  ##Fem el diagrama de venn
+  overlap<-calculate.overlap(x=list("list1"=list1,"list2"=list2))
+
+  draw.pairwise.venn(length(overlap$a1),length(overlap$a2),length(overlap$a3),
+                  category=c(name1,name2),scaled = TRUE,euler.d = TRUE, 
+                 fill = c("blue", "red"),lty = "blank",
+                 cat.pos = c(15, 150),cat.col = c("blue","red"))
+  
+  ##es grava l'arxiu de text on s'indica quin gen hi és a cada venn
+  datos<-top2[which(rownames(top2) %in% df$genes),]
+  datos<-datos[,-c(3:length(colnames(datos)))]
+  rownames(df)<-df$genes
+  datos2<-merge(datos,df,by=0)
+  datos2<-datos2[,-c(3,4)]
+  colnames(datos2)<-c("AffyID","Symbols",name1,name2)
+  write.csv(datos2, file=file.path(resultsDir,paste0("mult.comp.",name1,"_",name2,".csv")))
+}
+@
+\\
+
+Venn diagram for multiple comparison is shown in figure \ref{fig:venn1}. \textbf{6 genes in common with log fold change of 0.5 and pvalue of 0.01} between the two comparisons are observed.
+
+
+<<venn1, echo=FALSE,results='hide',message=FALSE>>=
+library(VennDiagram)
+library(gridExtra) #para poder añadir el título al gráfico
+top1 <- csv2topTab_FT.A.C9vsCTL
+name1 <-"FT.A.C9vsCTL"
+top2 <- csv2topTab_FT.AvsCTL
+name2<-"FT.AvsCTL"
+
+pdf(file.path(resultsDir,"VennDiagram.pdf"))
+grid.arrange(gTree(children=vennfrom2csv(top1,name1,top2,name2,0.5,0.01)),top=paste0("Venn Diagram for: ",name1, " vs ",name2," (logFC 0.5 & pval 0.01)"))
+dev.off()  
+@
+\begin{figure}
+\centering
+\includegraphics[scale=0.4]{results/VennDiagram.pdf}
+\caption{\label{fig:venn1}Venn diagram for multiple comparison.}
+\end{figure}
+
+\newpage
+
+\subsection{Expression profiles visualization: Heatmaps}
+It is interesting to look for common patterns of regulation between different experimental conditions. Every clustering is represented in a heatmap shown in files \texttt{HeatMap.XXX$_$YYY.pdf}, where \texttt{XXX$_$YYY} refers to the comparisons used.
+
+<<prepareData, echo=FALSE,results='hide'>>=
+library(gplots)
+library(limma)
+library(Biobase)
+
+##preparar dades per heatmap del objecte fit.main1 (tres comparacions)
+res1<-decideTests(fit.main1,method="separate", p.value=0.01, lfc=0.5,adjust.method="none")
+sum.res.rows1<-apply(abs(res1),1,sum)
+res.selected1<-res1[sum.res.rows1!=0,] 
+print(summary(res1))
+
+probeNames<-rownames(res1)
+probeNames.selected<-probeNames[sum.res.rows1!=0]
+geneSimbols.selected<-csv2topTab_FT.AvsCTL[probeNames.selected,]#utilizamos csv2...(como podriamos utilzar cualquiera de los cuatro) ya que tiene todos los AffyID filtrados.
+exprs2cluster <-exprs(eset_filtered)[probeNames.selected,]
+
+exprs2cluster.end<-merge(geneSimbols.selected,exprs2cluster,by=0)
+rnames<-exprs2cluster.end$Gene.Symbol
+rownames(exprs2cluster.end)<-exprs2cluster.end$Gene.Symbol
+exprs2cluster.end<-exprs2cluster.end[,-c(1:9)]
+#colnames(exprs2cluster.end)<-targets$ShortName (no estan en el mateix ordre)!!!!!!
+exprs2cluster.ordered <- exprs2cluster.end[,c(1:15,19,20,23,26,29,16:18,21,22,24,25,27,28,30)]
+colnames(exprs2cluster.ordered) <- targets$ShortName
+mat_data<-data.matrix(exprs2cluster.ordered)
+rownames(mat_data) <- rnames
+order_data<-mat_data #perque ja la hem ordenat abans #dim 538 30
+
+##preparar dades per heatmap per fit.main2
+res2<-decideTests(fit.main2,method="separate", p.value=0.01, lfc=0.5,adjust.method="none")
+sum.res.rows2<-apply(abs(res2),1,sum)
+res.selected2<-res2[sum.res.rows2!=0,] 
+print(summary(res2))
+
+probeNames2<-rownames(res2)
+probeNames.selected2<-probeNames2[sum.res.rows2!=0]
+geneSimbols.selected2<-csv2topTab_DementiavsControls[probeNames.selected2,]#utilizamos csv2...(como podriamos utilzar cualquiera de los cuatro) ya que tiene los AffyID filtrados.
+exprs2cluster2 <-exprs(eset_filtered)[probeNames.selected2,]
+
+exprs2cluster.end2<-merge(geneSimbols.selected2,exprs2cluster2,by=0)
+rnames2<-exprs2cluster.end2$Gene.Symbol
+rownames(exprs2cluster.end2)<-exprs2cluster.end2$Gene.Symbol
+exprs2cluster.end2<-exprs2cluster.end2[,-c(1:9)]
+#colnames(exprs2cluster.end2)<-targets$ShortName#comprobar el orden de las columnas
+exprs2cluster.ordered2 <- exprs2cluster.end2[,c(1:15,19,20,23,26,29,16:18,21,22,24,25,27,28,30)]
+colnames(exprs2cluster.ordered2) <- targets$ShortName
+mat_data2<-data.matrix(exprs2cluster.ordered2)
+rownames(mat_data2) <- rnames2
+order_data2 <- mat_data2 #perque ja la hem ordenat abans #dim 63 30
+
+
+#grupColors <- targets$Colores
+mypalette <- colorRampPalette(c("blue", "white", "red"))(n = 299)
+@
+\\
+Heatmap for comparisons \textbf{FT.AvsCTL}, \textbf{FT.A.C9vsCTL} and \textbf{FT.A.C9vsFT.A} (figure \ref{fig:heatmap1}) has been performed with genes with a \textbf{pValue 0.01 \& logFC 0.5}, given a total of \textbf{538 genes} included. Hierarquical clustering for samples (columns), shows that for \texttt{FT.A group} samples are well classificated except for sample \texttt{897.FT.A}, that is allocated with a group of  \texttt{FT.A.C9} samples. In general, expression of \texttt{FT.A} group is lower than the expression of \texttt{FT.A.C9} and \texttt{CTL} groups.
+\\
+%' \begin{figure}[htbp]
+%' \centering
+%' <<heatmap1,echo=FALSE,fig.width=6,fig.height=6>>=
+%' par(mfrow=c(1,1),cex.main=0.7)
+%' heatmap.2(order_data,
+%'           Rowv=TRUE,
+%'           #Colv=FALSE,
+%'           main="HeatMap for SHAM.IPvsSHAM.CL pValue 0.05 & logFC 0.6",
+%'           scale="row",
+%'           col=mypalette,
+%'           sepcolor="white",
+%'           sepwidth=c(0.05,0.05),
+%'           cexRow=0.5,
+%'           cexCol=0.6,
+%'           key=FALSE,
+%'           density.info="histogram",
+%'           tracecol=NULL,
+%'           srtCol=30,
+%'           ColSideColors = c(rep("darkgreen",3 ),rep("lightgreen",3))
+%'           )
+%' @
+%' \caption{Heatmap for comparison SHAM.IPvsSHAM.CL with pValue 0.05 $&$ logFC 0.6}
+%' \label{fig:heatmap1}
+%' \end{figure}
+\\
+\begin{figure}
+\centering
+\includegraphics[scale=0.5]{results/Heatmap1.pdf}
+\caption{\label{fig:heatmap1}Heatmap for paired comparison with pValue 0.01 $&$ logFC 0.5}}
+\end{figure}
+
+
+Heatmap for \textbf{unpaired comparison}  (figure \ref{fig:heatmap3}) has been performed with genes with a \textbf{pValue 0.01 \& logFC 0.5}, given a total of \textbf{63 genes} included. Hierarquical clustering shows that 5 samples of \texttt{Dementia} group are classificated with \texttt{CTL} group. As previously observed, in general expression of \texttt{Dementia} group is lower than expression of \texttt{CTL} group.
+\\
+\begin{figure}
+\centering
+\includegraphics[scale=0.5]{results/Heatmap2.pdf}
+\caption{\label{fig:heatmap3}Heatmap for unpaired comparison with pValue 0.01 $&$ logFC 0.5}}
+\end{figure}
+
+\\
+<<heatmaps2pdf,results='hide',echo=FALSE>>=
+pdf(file.path(resultsDir,"Heatmap1.pdf"))
+par(mfrow=c(1,1),cex.main=0.9)
+heatmap.2(order_data,
+          Rowv=TRUE,
+          #Colv=FALSE,
+          main="HeatMap (pValue 0.01 & logFC 0.5)",
+          scale="row",
+          col=mypalette,
+          sepcolor="white",
+          sepwidth=c(0.05,0.05),
+          cexRow=0.5,
+          cexCol=0.6,
+          key=FALSE,
+          density.info="histogram",
+          tracecol=NULL,
+          srtCol=30,
+          ColSideColors = c(rep("red",10 ),rep("blue",10),rep("yellow",10))
+          )
+dev.off()
+
+pdf(file.path(resultsDir,"Heatmap2.pdf"))
+par(mfrow=c(1,1),cex.main=0.9)
+heatmap.2(order_data2,
+          #Colv=FALSE,
+          Rowv=TRUE,
+          main="HeatMap DementiavsCTL (pValue 0.01 & logFC 0.5)",
+          scale="row",
+          col=mypalette,
+          sepcolor="white",
+          sepwidth=c(0.05,0.05),
+          cexRow=0.5,
+          cexCol=0.6,
+          key=FALSE,
+          density.info="histogram",
+          tracecol=NULL,
+          srtCol=30,
+          ColSideColors = c(rep("red",10 ),rep("blue",10),rep("yellow",10))
+          )
+dev.off()
+
+@
