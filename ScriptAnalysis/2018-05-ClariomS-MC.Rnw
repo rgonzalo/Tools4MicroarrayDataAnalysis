@@ -1,0 +1,388 @@
+
+<<setDirs,echo=FALSE>>=
+mainDir <-getwd()
+workingDir <- mainDir
+dataDir <-file.path(mainDir, "dades")
+resultsDir <- file.path(workingDir, "results")
+imagesDir<-file.path(mainDir,"images")
+@
+
+<<options,echo=FALSE>>=
+require(knitr)
+opts_chunk$set(fig.path = imagesDir, echo=FALSE, message=FALSE,warnings = FALSE )
+options(warn=-1)
+@
+
+<<loadData2,echo=FALSE>>=
+load(file.path(dataDir,"afterTopTabs.Rda"))
+@
+
+\subsection{Multiple comparisons between gene lists}
+
+In order to find the degree of overlapped genes among different comparisons, a multiple comparisons analysis has been performed.  Associated to each group of multiple comparisons, Venn diagrams were plotted. Files \texttt{VennDiagramXXXcompPvalueYYYlogFCzzz.pdf} and \texttt{sharedElements.XXXcomp. P.ValueYYYlogFCzzz.xls} can be find in the results folder, where \texttt{XXX}, refers to every group of comparisons performed, \texttt{YYY} to the level of significance chosen and \texttt{zzz} to the absolute logFC chosen. File \texttt{VennDiagramXXXcompPvalueYYYlogFCzzz.pdf} is the image of the Venn diagram, and \texttt{sharedElements.  XXXcomp.P.ValueYYYlogFCzzz.xls} is a file where the names of each gene involved in each intersection of the Venn can be found.
+
+<<loadlibrary, echo=FALSE,results='hide',message=FALSE>>=
+require(venneuler)
+require(VennDiagram)
+require(devtools)
+library(WriteXLS)
+source ("https://raw.githubusercontent.com/rgonzalo/GitBackupScripts/master/VennDiagrams/CreateVennEuler.R")
+require(gplots)
+require(limma)
+require(Biobase)
+library(gdata)
+@
+
+ <<venn1,echo=FALSE,results='hide',message=FALSE>>=
+file1 <- csv2topTab.APP.6MvsWT.6M
+file2 <- csv2topTab.APP.12MvsWT.12M
+file3 <- csv2topTab.APP.18MvsWT.18M
+file4 <- csv2topTab.APP.24MvsWT.24M
+setwd(resultsDir)
+listottop <- list(file1, file2, file3, file4)
+compNameslist <- c("APP.6MvsWT.6M", "APP.12MvsWT.12M", "APP.18MvsWT.18M", "APP.24MvsWT.24M")
+sharedElems1 <- createVennEuler(topTabs = listottop,
+                                  compNames = compNameslist,
+                                  label = "EffectAPPvsWT",
+                                  colFeat = "Gene.Symbol",
+                                  colPVal = "P.Value",
+                                  pval = 0.05,
+                                  pltR = FALSE,
+                                  pltPdf = TRUE,
+                                  eul = FALSE,
+                                  venn = TRUE,
+                                  csv = TRUE,
+                                position = c(-10, 15, 50, 50),
+                                rotation = 0,
+                                cex1 = 0.75,
+                                cex2 = 0.75,
+                                FC = 0)
+  
+setwd(workingDir)
+@
+
+Venn diagram for multiple comparison \textbf{Effect of amyloid deposits at each time point} with \textbf{pvalue under 0.05}, is shown in figure \ref{fig:venn1}. In this multiple comparison there are some genes in common (\textbf{3}) for the four comparisons and some genes specific for each single comparisons. Earlier times give more specific genes: there are \textbf{1050} genes that change exclusively in the \texttt{APP.6MvsWT.6M} comparison and \textbf{540} that changes exclusively in the \texttt{APP.12MvsWT.12M} comparison.
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.2]{results/VennDiagramEffectAPPvsWTPValue005logFC0.pdf}
+\caption{\label{fig:venn1}Venn diagram for comparison \texttt{Effect of amyloid deposits at each time point}}
+\end{figure}
+
+Venn diagram for multiple comparison \textbf{Effect of aging respect basal time (6M)} with \textbf{pvalue under 0.01} and \textbf{absolute logFC greater than 0.75}, is shown in figure \ref{fig:venn2}. 22 genes in common has been obtained among the three comparisons involved. There are a lot of genes that change only in single comparison \texttt{WT.12MvsWT.6M} (\textbf{204}.
+
+ <<venn2,echo=FALSE,results='hide',message=FALSE>>=
+file4 <- csv2topTab.WT.12MvsWT.6M
+file5 <- csv2topTab.WT.18MvsWT.6M
+file6 <- csv2topTab.WT.24MvsWT.6M
+setwd(resultsDir)
+listoftop <- list(file4, file5, file6)
+compNameslist <- c("WT.12MvsWT.6M", "WT.18MvsWT.6M", "WT.24MvsWT.6M")
+sharedElems <- createVennEuler(topTabs = listoftop,
+                                 compNames = compNameslist,
+                                 label = "EffectAging",
+                                 colFeat = "Gene.Symbol",
+                                 colPVal = "P.Value",
+                                 pval = 0.01,
+                                 pltR = FALSE,
+                                 pltPdf = TRUE,
+                                 eul = FALSE,
+                                 venn = TRUE,
+                                 csv = TRUE, 
+                                position = c(-40, 30, 180),
+                                rotation = 0,
+                                cex1 = 0.75,
+                                cex2 = 0.75,
+                               FC = 0.75)
+ 
+ setwd(workingDir)
+@
+\begin{figure}
+  \centering
+  \includegraphics[scale=0.2]{results/VennDiagramEffectAgingPValue001logFC075.pdf}
+  \caption{\label{fig:venn2}Venn diagram for comparisons \texttt{Effect of aging respect basal time (6M)}}
+\end{figure}
+
+Venn diagram for multiple comparison \textbf{Effect of amyloid deposits at each time respect to time 6 months in APP mice} with \textbf{pvalue under 0.01} and \textbf{absolute logFC greater than 1 } is shown in figure \ref{fig:venn3}. 72 genes in common has been observed among the three comparisons. The single comparison with more genes not shared with other comparisons is \texttt{APP.24MvsAPP.6M}, with \textbf{102 genes}.
+
+ <<venn3,echo=FALSE,results='hide',message=FALSE>>=
+file7 <- csv2topTab.APP.12MvsAPP.6M
+file8 <- csv2topTab.APP.18MvsAPP.6M
+file9 <- csv2topTab.APP.24MvsAPP.6M
+setwd(resultsDir)
+listoftop <- list(file7, file8, file9)
+compNameslist <- c("APP.12MvsAPP.6M", "APP.18MvsAPP.6M", "APP.24MvsAPP.6M")
+sharedElems <- createVennEuler(topTabs = listoftop,
+                                 compNames = compNameslist,
+                                 label = "EffectAPPvs6M",
+                                 colFeat = "Gene.Symbol",
+                                 colPVal = "P.Value",
+                                 pval = 0.01,
+                                 pltR = FALSE,
+                                 pltPdf = TRUE,
+                                 eul = FALSE,
+                                 venn = TRUE,
+                                 csv = TRUE, 
+                                position = c(-40, 30, 180),
+                                rotation = 0,
+                                cex1 = 0.75,
+                                cex2 = 0.75,
+                               FC= 1)
+ 
+ setwd(workingDir)
+@
+\begin{figure}
+  \centering
+  \includegraphics[scale=0.2]{results/VennDiagramEffectAPPvs6MPValue001logFC1.pdf}
+  \caption{\label{fig:venn3}Venn diagram for comparisons \texttt{Effect of amyloid deposits at each time respect to time 6 months in APP mice}}
+\end{figure}
+
+Venn diagram for multiple comparison \textbf{Effect of amyloid deposits at each time respect to time 6 months in APP mice, corrected by mice age} with \textbf{pvalue under 0.01} and \textbf{absolute logFC greater than 1 } is shown in figure \ref{fig:venn4}. 63 genes in common has been observed among the three comparisons. The single comparison with more genes not shared with other comparisons is \texttt{Effect.APP12M.Corrected}, with \textbf{174 genes}.
+
+ <<venn4,echo=FALSE,results='hide',message=FALSE>>=
+file10 <- csv2topTab.Effect.APP12M.Corrected
+file11 <- csv2topTab.Effect.APP18M.Corrected
+file12 <- csv2topTab.Effect.APP24M.Corrected
+setwd(resultsDir)
+listoftop <- list(file10, file11, file12)
+compNameslist <- c("Effect.APP12M.Corrected", "Effect.APP18M.Corrected", "Effect.APP24M.Corrected")
+action <- TRUE
+sharedElems <- createVennEuler(topTabs = listoftop,
+                                 compNames = compNameslist,
+                                 label = "EffectAPPCorrected",
+                                 colFeat = "Gene.Symbol",
+                                 colPVal = "P.Value",
+                                 pval = 0.01,
+                                 pltR = TRUE,
+                                 pltPdf = action,
+                                 eul = FALSE,
+                                 venn = TRUE,
+                                 csv = action, 
+                                position = c(-40, 30, 180),
+                                rotation = 0,
+                                cex1 = 0.75,
+                                cex2 = 0.75,
+                               FC= 1)
+ 
+ setwd(workingDir)
+@
+\begin{figure}
+  \centering
+  \includegraphics[scale=0.2]{results/VennDiagramEffectAPPCorrectedPValue001logFC1.pdf}
+  \caption{\label{fig:venn4}Venn diagram for comparisons \texttt{Effect of amyloid deposits at each time respect to time 6 months in APP mice, corrected by mice age}}
+\end{figure}
+
+\newpage
+
+\subsection{Expression profiles visualization: Heatmaps}
+It is interesting to look for common patterns of regulation between different experimental conditions. Every clustering is represented in a heatmap shown in files \texttt{HeatMap.XXX$_$YYY.pdf}, where \texttt{XXX$_$YYY} refers to the comparisons used.
+
+<<prepareData0, echo=FALSE,results='hide',message=FALSE>>=
+#HEATMAP Effect of amyloid deposits at each time point:
+listofcsv <- list(csv2topTab.APP.6MvsWT.6M, csv2topTab.APP.12MvsWT.12M, 
+                  csv2topTab.APP.18MvsWT.18M, csv2topTab.APP.24MvsWT.24M)
+  
+#escollir gens que han de sortir
+for(i in 1:length(listofcsv)){
+  assign(paste0("hm",i), subset(listofcsv[[i]], P.Value <.05 & abs(logFC)>1))
+} 
+
+#ajumtem els diferents gens escollits
+Allgenes2hm <- c(as.vector(hm1$Gene.Symbol), as.vector(hm2$Gene.Symbol), 
+                 as.vector(hm3$Gene.Symbol), as.vector(hm4$Gene.Symbol))
+#eliminem els duplicats
+length(Allgenes2hm) #132
+length(unique(Allgenes2hm)) #131
+Unique.genes2hm <- unique(Allgenes2hm)
+length(unique(Unique.genes2hm)) #131
+
+#busquem les expressions a partir de un csv2
+toptab <- read.xls(file.path(resultsDir, "ExpressionAndTop_APP.6MvsWT.6M.xls"), 
+                    sheet = 1, header = TRUE)
+Expr.genes2hm <- toptab[which(toptab$Gene.Symbol %in% Unique.genes2hm),]
+dim(Expr.genes2hm) #131 42
+
+#seleccionem les columnes
+colnames(Expr.genes2hm)[11:length(colnames(Expr.genes2hm))] <- as.character(targets$ShortName)
+colnames(Expr.genes2hm)
+expr.selected <- Expr.genes2hm[,-c(1,3:10)]
+head(expr.selected)
+dim(expr.selected) #131 33
+
+rownames(expr.selected) <- expr.selected$Gene.Symbol
+expr.simbol1 <- expr.selected[,-1]
+colnames(expr.simbol1)
+expr.simbol1 <- as.matrix(expr.simbol1)
+
+################3
+#HEATMAP Effect of aging respect basal time (6M)
+listofcsv <- list(csv2topTab.WT.12MvsWT.6M, csv2topTab.WT.18MvsWT.6M, 
+                  csv2topTab.WT.24MvsWT.6M)
+  
+#escollir gens que han de sortir
+for(i in 1:length(listofcsv)){
+  assign(paste0("hm",i), subset(listofcsv[[i]], P.Value <.05 & abs(logFC)>1))
+} 
+#ajumtem els diferents gens escollits
+Allgenes2hm <- c(as.vector(hm1$Gene.Symbol), as.vector(hm2$Gene.Symbol), 
+                 as.vector(hm3$Gene.Symbol))
+#eliminem els duplicats
+length(Allgenes2hm) #81
+length(unique(Allgenes2hm)) #69
+Unique.genes2hm <- unique(Allgenes2hm)
+length(unique(Unique.genes2hm)) #69
+
+#busquem les expressions a partir de un csv
+Expr.genes2hm <- toptab[which(toptab$Gene.Symbol %in% Unique.genes2hm),]
+dim(Expr.genes2hm) #69 42
+
+#seleccionem les columnes
+colnames(Expr.genes2hm)[11:length(colnames(Expr.genes2hm))] <- as.character(targets$ShortName)
+colnames(Expr.genes2hm)
+expr.selected <- Expr.genes2hm[,-c(1,3:26)]
+head(expr.selected)
+dim(expr.selected) #69 17
+
+rownames(expr.selected) <- expr.selected$Gene.Symbol
+expr.simbol2 <- expr.selected[,-1]
+colnames(expr.simbol2)
+expr.simbol2 <- as.matrix(expr.simbol2)
+
+#############
+#HEATMAP: Effect of amyloid deposits at each time respect to time 6 months in APP mice
+listofcsv <- list(csv2topTab.APP.12MvsAPP.6M, csv2topTab.APP.18MvsAPP.6M, 
+                  csv2topTab.APP.24MvsAPP.6M)
+  
+#escollir gens que han de sortir
+for(i in 1:length(listofcsv)){
+  assign(paste0("hm",i), subset(listofcsv[[i]], P.Value <.05 & abs(logFC)>1.5))
+} 
+#ajumtem els diferents gens escollits
+Allgenes2hm <- c(as.vector(hm1$Gene.Symbol), as.vector(hm2$Gene.Symbol), 
+                 as.vector(hm3$Gene.Symbol))
+#eliminem els duplicats
+length(Allgenes2hm) #104
+length(unique(Allgenes2hm)) #63
+Unique.genes2hm <- unique(Allgenes2hm)
+length(unique(Unique.genes2hm)) #63
+
+#busquem les expressions a partir de un csv
+Expr.genes2hm <- toptab[which(toptab$Gene.Symbol %in% Unique.genes2hm),]
+dim(Expr.genes2hm) #63 42
+
+#seleccionem les columnes
+colnames(Expr.genes2hm)[11:length(colnames(Expr.genes2hm))] <- as.character(targets$ShortName)
+colnames(Expr.genes2hm)
+expr.selected <- Expr.genes2hm[,-c(1, 3:10, 27:42)]
+head(expr.selected)
+dim(expr.selected) #63 17
+
+rownames(expr.selected) <- expr.selected$Gene.Symbol
+expr.simbol3 <- expr.selected[,-1]
+colnames(expr.simbol3)
+expr.simbol3 <- as.matrix(expr.simbol3)
+
+###########
+#HEATMAP: Effect of amyloid deposits at each time respect to time 6 months in APP mice, corrected by mice age:
+listofcsv <- list(csv2topTab.Effect.APP12M.Corrected, csv2topTab.Effect.APP18M.Corrected, 
+                  csv2topTab.Effect.APP24M.Corrected)
+  
+#escollir gens que han de sortir
+for(i in 1:length(listofcsv)){
+  assign(paste0("hm",i), subset(listofcsv[[i]], P.Value <.05 & abs(logFC)>1.25))
+} 
+#ajumtem els diferents gens escollits
+Allgenes2hm <- c(as.vector(hm1$Gene.Symbol), as.vector(hm2$Gene.Symbol), 
+                 as.vector(hm3$Gene.Symbol))
+#eliminem els duplicats
+length(Allgenes2hm) #231
+length(unique(Allgenes2hm)) #150
+Unique.genes2hm <- unique(Allgenes2hm)
+length(unique(Unique.genes2hm)) #150
+
+#busquem les expressions a partir de un csv
+Expr.genes2hm <- toptab[which(toptab$Gene.Symbol %in% Unique.genes2hm),]
+dim(Expr.genes2hm) #150 42
+
+#seleccionem les columnes
+colnames(Expr.genes2hm)[11:length(colnames(Expr.genes2hm))] <- as.character(targets$ShortName)
+colnames(Expr.genes2hm)
+expr.selected <- Expr.genes2hm[,-c(1, 3:10)]
+head(expr.selected)
+dim(expr.selected) #150 33
+
+rownames(expr.selected) <- expr.selected$Gene.Symbol
+expr.simbol4 <- expr.selected[,-1]
+colnames(expr.simbol4)
+expr.simbol4 <- as.matrix(expr.simbol4)
+
+#########################
+##FER ELS HEATMAPS
+
+mypalette <- colorRampPalette(c("blue", "white", "red"))(n = 199) #si valor alto no colores en la key
+
+listofhm1 <- list(expr.simbol1, expr.simbol2, expr.simbol3, expr.simbol4)
+listofhmNames1 <- list("Effect APP vs WT", "Effect of Aging", "Effect of APP vs 6M", 
+                       "Effect of APP Corrected")
+listofhmfiles1 <- list("EffectAPPvsWT", "EffectAging", "EffectAPPvs6M", 
+                       "EffectAPPCorrected")
+listofFC <- list("1", "1", "1.5", "1.25")
+colores <- list(as.character(targets$colores), as.character(targets$colores)[17:32],
+                as.character(targets$colores)[1:16], as.character(targets$colores))
+
+for (i in 1:length(listofhm1)){
+  pdf(file.path(resultsDir, paste0("Heatmap", listofhmfiles1[i],".pdf")))
+    par(mfrow=c(1,1),cex.main=0.7)
+    heatmap.2(listofhm1[[i]],
+           Rowv=TRUE,
+           #Colv=FALSE,
+           main= paste0("HeatMap for ", listofhmNames1[i]," logFC >",listofFC[i], 
+                        " & pvalue <0.05"),
+           scale="row",
+           col=mypalette,
+           sepcolor="white",
+           sepwidth=c(0.05,0.05),
+           cexRow=0.5,
+           cexCol=0.6,
+           key=TRUE,
+           keysize = 2, #tamaño de la "key" si es pequeña no salen los colores
+           density.info="histogram",
+           tracecol=NULL,
+           srtCol=30,
+           ColSideColors = colores[[i]])
+   dev.off()
+}
+@
+\\
+
+Heatmap for multiple comparison \texttt{EffectAPPvsWT} (figure \ref{fig:heatmap1}) has been performed with genes with a \textbf{pValue under 0.05} and \textbf{absolute logarithmic fold change above 1}, giving a total of \textbf{131 genes} included. Hierarchical clustering for samples (columns), shows a good classification for samples from groups \texttt{APP.6M} and \texttt{WT.12M}. Different expression pattern is observed between samples from group \texttt{APP.6M} and the rest of the samples.
+\\
+\begin{figure}
+ \centering
+ \includegraphics[scale=0.5]{results/HeatmapEffectAPPvsWT.pdf}
+ \caption{\label{fig:heatmap1}Heatmap for multiple comparison \texttt{Effect APP vs WT.}}
+\end{figure}
+
+Heatmap for comparison \texttt{Effect of Aging} (figure \ref{fig:heatmap2}) has been performed with genes with a \textbf{pValue under 0.05} and \textbf{absolute logarithmic fold change above 1}, given a total of \textbf{69 genes} included. Like in previous heatmap, hierarchical clustering of samples shows a good classification for samples from groups \texttt{APP.6M} and \texttt{WT.12M}. Different expression pattern is observed between these two groups.
+ \\
+ \begin{figure}
+  \centering
+  \includegraphics[scale=0.5]{results/HeatmapEffectAging.pdf}
+  \caption{\label{fig:heatmap2}Heatmap for multiple comparison \texttt{Effect of Aging}}
+ \end{figure}
+
+Heatmap for comparison \texttt{Effect of APP vs 6M} (figure \ref{fig:heatmap3}) has been performed with genes with a \textbf{pValue under 0.05} and \textbf{absolute logarithmic fold change above 1.5}, given a total of \textbf{63 genes} included. Hierarchical clustering of samples shows a good classification all samples except for samples from group \texttt{APP.12}. Different expression pattern is observed between samples from group \texttt{APP.6M} and the rest of the samples.
+ \\
+ \begin{figure}
+  \centering
+  \includegraphics[scale=0.5]{results/HeatmapEffectAPPvs6M.pdf}
+  \caption{\label{fig:heatmap3}Heatmap for multiple comparison \texttt{Effect of APP vs 6M}}
+ \end{figure}
+ 
+Heatmap for comparison \texttt{Effect of APP Corrected} (figure \ref{fig:heatmap4}) has been performed with genes with a \textbf{pValue under 0.05} and \textbf{absolute logarithmic fold change above 1.25}, given a total of \textbf{150 genes} included. Hierarchical clustering of samples shows a good classification for samples from groups \texttt{APP.6M}, \texttt{WT.6M} and \texttt{APP.24M}.
+ \\
+ \begin{figure}
+  \centering
+  \includegraphics[scale=0.5]{results/HeatmapEffectAPPCorrected.pdf}
+  \caption{\label{fig:heatmap4}Heatmap for multiple comparison \texttt{Effect of APP Corrected}}
+ \end{figure}

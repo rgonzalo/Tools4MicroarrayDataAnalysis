@@ -1,0 +1,339 @@
+
+
+
+<<setDirs1,echo=FALSE>>=
+mainDir <-getwd()
+workingDir <- mainDir
+dataDir <-file.path(mainDir, "dades")
+celDir <-  file.path(workingDir, "celfiles")
+celDir2 <-  file.path(workingDir, "celfiles2")
+resultsDir <- file.path(workingDir, "results")
+imagesDir<-file.path(mainDir,"images")
+@
+
+<<options,echo=FALSE>>=
+require(knitr)
+opts_chunk$set(fig.path = imagesDir, echo=FALSE, message=FALSE,warnings = FALSE )
+options(warn=-1)
+@
+
+<<loadData,echo=FALSE>>=
+load(file.path(resultsDir,"normData.Rda"))
+@
+
+
+<<writeNormalized,echo=FALSE>>=
+write.csv2(data, file.path(resultsDir, "Normalized.csv"),row.names = TRUE)
+write.csv2(anotaciones, file.path(resultsDir, "Anotaciones.csv"),row.names=TRUE)
+@ 
+
+
+\subsection{Selection of Differentially Expressed Genes}
+As previously commented (\ref{objectives}) the goal of the study is to find differentially expressed genes between two regions of the mouse's brain (ipsilateral and contralateral) in ischemic animals and sham animals. To achieve this main objective different specific comparisons has been performed:
+\begin{itemize}
+\item Effect of \textit{Brain region}:
+  \begin{enumerate}
+    \item In \texttt{Sham} animals: IPSI.SHAM vs CONT.SHAM = IPSI.SHAM - CONT.SHAM
+    \item In \texttt{Ischemic} animals: IPSI.ISC vs CONT.ISC = IPSI.ISC - CONT.ISC
+  \end{enumerate}
+\end{itemize}
+\begin{itemize}
+\item Effect of \textit{Treatment}:
+\begin{enumerate}
+    \item In \texttt{Ipsilateral} region: IPSI.ISC vs IPSI.SHAM = IPSI.ISC - IPSI.SHAM
+    \item In \texttt{Contralateral} region: CONT.ISC vs CONT.SHAM = CONT.ISC - CONT.SHAM
+  \end{enumerate}
+\end{itemize}
+
+\noindent When analyzing the effect of \textit{Brain.region} factor, the fact that the regions of the mouse's brain analyzed come from the same animal, will be take into account in the fitted model.
+\\
+The analysis to select differentially expressed genes has been
+based on adjusting a linear model with empirical bayes moderation of the variance. This is a technique similar to ANOVA specifically developed for microarray data
+analysis by Gordon K. Smyth in 2004 \cite{Smyth:2004}.
+\\
+Each comparison yields a list of genes sorted from most to least differentially expressed
+genes which is called generically a top table. The resulting top tables are presented in an csv file. Besides for each comparisons the corresponding Volcano Plot is provided in the \texttt{results} folder.
+\\
+
+<<setContrasts, echo=FALSE,results='hide'>>=
+library(limma)
+
+##set contrast for PAIRED comparison in SHAM
+targets <- my.targets
+targetsSHAM <- targets[targets$Treatment=="SHAM",]
+designSHAM <- model.matrix( ~0 + targetsSHAM$Brain_Region+ targetsSHAM$Mouse)
+#dim(designSHAM) 8 3
+#qr(as.matrix(designSHAM))$rank 3
+#is.fullrank(as.matrix(designSHAM)) TRUE
+colnames(designSHAM)<-c( "SHAM.CL",  "SHAM.IP","Mouse")
+
+contrastM_SHAM <- makeContrasts(SHAM.IPvsSHAM.CL = SHAM.IP - SHAM.CL,
+                                levels=designSHAM)
+print(contrastM_SHAM)
+
+##set contrast for PAIRED comparison in ISC
+targetsISC <- targets[targets$Treatment=="ISC",]
+designISC <- model.matrix( ~0 + targetsISC$Brain_Region+ targetsISC$Mouse)
+#dim(designISC) 16 3
+#qr(as.matrix(designISC))$rank 3
+#is.fullrank(as.matrix(designISC)) TRUE
+colnames(designISC)<-c( "ISC.CL",  "ISC.IP","Mouse")
+
+contrastM_ISC <- makeContrasts(ISC.IPvsISC.CL = ISC.IP - ISC.CL,
+                                levels=designISC)
+print(contrastM_ISC)
+
+#set contrast for UNpaired comparisons
+lev <- as.factor(targets[,1])
+batch<-as.factor(targets$Batch)
+design2 <- model.matrix( ~ 0 + lev + batch)        
+colnames(design2)<-c("ISC.CL","ISC.IP","SHAM.CL","SHAM.IP","batch2","batch3")
+rownames(design2)<-targets$ShortName
+print(design2)
+#dim(design2) 24 6
+#qr(as.matrix(design2))$rank 6
+#is.fullrank(as.matrix(design2)) TRUE
+
+contrastsMatrix2 <- makeContrasts(ISC.IPvsSHAM.IP = ISC.IP - SHAM.IP,
+                                 ISC.CLvsSHAM.CL = ISC.CL - SHAM.CL,
+                                 levels = design2)
+print(contrastsMatrix2)
+@
+
+<<linearmodelfit,echo=FALSE>>=
+#se subsetea el objeto data.eset para que el número de columnas cuadre
+data.eset.SHAM <- data.eset[,c(3,4,9:12,17,18)]
+
+fitSHAM<-lmFit(data.eset.SHAM, designSHAM)
+fit.main.SHAM<-contrasts.fit(fitSHAM, contrastM_SHAM)
+fit.main.SHAM<-eBayes(fit.main.SHAM)
+
+#se subsetea el objeto data.eset para que el número de columnas cuadre
+data.eset.ISC <- data.eset[,-c(3,4,9:12,17,18)]
+
+fitISC<-lmFit(data.eset.ISC, designISC)
+fit.main.ISC<-contrasts.fit(fitISC, contrastM_ISC)
+fit.main.ISC<-eBayes(fit.main.ISC)
+
+#en la tercera comparación no hace falta subsetear porque son todas las muestras
+fit2<-lmFit(data.eset, design2)
+fit.main2<-contrasts.fit(fit2, contrastsMatrix2)
+fit.main2<-eBayes(fit.main2)
+@
+
+<<topTables, echo=FALSE, results='hide',message=FALSE>>=
+###Parired comparisons. 1
+topTab_SHAM.IPvsSHAM.CL <- topTable (fit.main.SHAM, number=nrow(fit.main.SHAM), coef="SHAM.IPvsSHAM.CL", adjust="fdr")
+
+###Parired comparisons. 2
+topTab_ISC.IPvsISC.CL <- topTable (fit.main.ISC, number=nrow(fit.main.ISC), coef="ISC.IPvsISC.CL", adjust="fdr")
+
+###UNpaired comparisons. 1
+topTab_ISC.IPvsSHAM.IP <- topTable (fit.main2, number=nrow(fit.main2), coef="ISC.IPvsSHAM.IP", adjust="fdr")
+
+###UNpaired comparisons. 2
+topTab_ISC.CLvsSHAM.CL <- topTable (fit.main2, number=nrow(fit.main2), coef="ISC.CLvsSHAM.CL", adjust="fdr")
+@
+
+The results of the number of differentially expressed genes in each comparisons at different thresholds are shown in table \ref{tab:numgeneschanged}:
+\newpage
+
+<<numsgenechange,echo=FALSE,results='hide'>>=
+################################################################################
+####################
+##### geneSelectable
+####################
+##### topTab: Toptable en format '.csv'
+##### adj0: p.valor adjustat pel qual filtrar (de normal, 0.01)
+##### adj1: segon p.valor adjustat pel qual filtrar (de normal, 0.05)
+##### adj2: tercer p.valor adjustat pel qual filtrar (de normal, 0.25)
+##### P1: p.valor pel qual filtrar (de normal, 0.01)
+##### P2: segon p.valor pel qual filtrar (de normal, 0.05)
+################################################################################
+genesSelectable <- function (topTab, adj0, adj1, adj2, P1, P2,FC=0)
+{
+  upBelowB <- sum(topTab$B > 0  & topTab$t > 0 & abs(topTab$logFC) > FC)
+  downBelowB <- sum(topTab$B > 0  & topTab$t < 0 & abs(topTab$logFC) > FC)
+  
+  upBelowAdj0 <- sum(topTab$adj.P.Val < adj0 & topTab$t > 0 & abs(topTab$logFC) > FC)
+  downBelowAdj0 <- sum(topTab$adj.P.Val < adj0 & topTab$t < 0 & abs(topTab$logFC) > FC)
+  
+  upBelowAdj1 <- sum(topTab$adj.P.Val < adj1 & topTab$t > 0 & abs(topTab$logFC) > FC)
+  downBelowAdj1 <- sum(topTab$adj.P.Val < adj1 & topTab$t < 0 & abs(topTab$logFC) > FC)
+  
+  upBelowAdj2 <- sum(topTab$adj.P.Val < adj2 & topTab$t > 0 & abs(topTab$logFC) > FC)
+  downBelowAdj2 <- sum(topTab$adj.P.Val < adj2 & topTab$t < 0 & abs(topTab$logFC) > FC)
+  
+  upBelowP1 <- sum(topTab$P.Value < P1 & topTab$t > 0 & abs(topTab$logFC) > FC)
+  downBelowP1 <- sum (topTab$P.Value < P1 & topTab$t < 0 & abs(topTab$logFC) > FC)
+  
+  upBelowP2 <- sum(topTab$P.Value < P2 & topTab$t > 0 & abs(topTab$logFC) > FC)
+  downBelowP2 <- sum(topTab$P.Value < P2 & topTab$t < 0 & abs(topTab$logFC) > FC)
+  
+  return(c(upReg_B = upBelowB,downReg_B = downBelowB,
+           upRegAdj0.01 = upBelowAdj0, downRegAdj0.01 = downBelowAdj0,
+           upRegAdj0.05 = upBelowAdj1, downRegAdj0.05 = downBelowAdj1,
+           upRegAdj0.25 = upBelowAdj2, downRegAdj0.25 = downBelowAdj2,
+           upRegP0.01 = upBelowP1, downRegP0.01 = downBelowP1,
+           upRegP0.05 = upBelowP2, downRegP0.05 = downBelowP2))   
+}
+
+SHAM.IPvsSHAM.CL<-genesSelectable(topTab_SHAM.IPvsSHAM.CL,0.01,0.05,0.25,0.01,0.05)
+ISC.IPvsISC.CL<-genesSelectable(topTab_ISC.IPvsISC.CL,0.01,0.05,0.25,0.01,0.05)
+ISC.IPvsSHAM.IP<-genesSelectable(topTab_ISC.IPvsSHAM.IP,0.01,0.05,0.25,0.01,0.05)
+ISC.CLvsSHAM.CL<-genesSelectable(topTab_ISC.CLvsSHAM.CL,0.01,0.05,0.25,0.01,0.05)
+#fem el data frame
+numGenesChanged<-cbind.data.frame(SHAM.IPvsSHAM.CL,ISC.IPvsISC.CL,ISC.IPvsSHAM.IP,ISC.CLvsSHAM.CL)
+write.csv2(numGenesChanged,file.path(resultsDir,"numGenesChanged.csv"),sep=";")
+@
+
+
+<<numgenetable,results='asis',echo=FALSE>>=
+library(xtable)
+x.big2 <- xtable(numGenesChanged,caption="Number of DEG for different thresholds",label="tab:numgeneschanged")
+print(x.big2, tabular.environment = 'longtable', floating = FALSE,size="tiny")
+@
+
+\subparagraph{p-values adjustment}
+
+If one wishes to have a statistically grounded criteria, the selection of the differentially expressed genes should be based on adjusted p-values (less than 0.01) or $B$ statistic (greater than 0). If these criteria yield too few genes, the table \ref{tab:numgeneschanged} indicates how many genes will yield a less restrictive criteria such as calling those differentially expressed genes with, for instance, adjusted p-values less than 0.25 or unadjusted p-values smaller than 0.05.\\
+
+<<arreglatoptab,echo=FALSE,results='hide'>>=
+#aquí afegim el nom del miRNA per tal de que sorti a la topTable i grabem el csv
+##llista topTab_SHAM.IPvsSHAM.CL
+head(topTab_SHAM.IPvsSHAM.CL)
+anotaTop <- anotaciones[,c(3,6)]
+head(anotaTop)
+
+topTab_SHAM.IPvsSHAM.CL.anotada <- merge(topTab_SHAM.IPvsSHAM.CL,anotaTop,by=0)
+topTab_SHAM.IPvsSHAM.CL.anotada <- topTab_SHAM.IPvsSHAM.CL.anotada[order(-topTab_SHAM.IPvsSHAM.CL.anotada$B),]
+rownames(topTab_SHAM.IPvsSHAM.CL.anotada) <- topTab_SHAM.IPvsSHAM.CL.anotada$Row.names
+topTab_SHAM.IPvsSHAM.CL.anotada <- topTab_SHAM.IPvsSHAM.CL.anotada[,-1]
+head(topTab_SHAM.IPvsSHAM.CL.anotada)
+topTab_SHAM.IPvsSHAM.CL.anotada <- topTab_SHAM.IPvsSHAM.CL.anotada[,c(7,1:6,8)]
+colnames(topTab_SHAM.IPvsSHAM.CL.anotada) <- c("Symbol","logFC","AveExpr","t","P.Value",
+                                               "adj.P.Val","B","Accession")
+write.csv2(topTab_SHAM.IPvsSHAM.CL.anotada,file.path(resultsDir,"topTab_SHAM.IPvsSHAM.CL.csv"),row.names = TRUE)
+
+##llista topTab_ISC.IPvsISC.CL
+topTab_ISC.IPvsISC.CL.anotada <- merge(topTab_ISC.IPvsISC.CL,anotaTop,by=0)
+topTab_ISC.IPvsISC.CL.anotada <- topTab_ISC.IPvsISC.CL.anotada[order(-topTab_ISC.IPvsISC.CL.anotada$B),]
+rownames(topTab_ISC.IPvsISC.CL.anotada) <- topTab_ISC.IPvsISC.CL.anotada$Row.names
+topTab_ISC.IPvsISC.CL.anotada <- topTab_ISC.IPvsISC.CL.anotada[,-1]
+head(topTab_ISC.IPvsISC.CL.anotada)
+topTab_ISC.IPvsISC.CL.anotada <- topTab_ISC.IPvsISC.CL.anotada[,c(7,1:6,8)]
+colnames(topTab_ISC.IPvsISC.CL.anotada) <- c("Symbol","logFC","AveExpr","t","P.Value",
+                                               "adj.P.Val","B","Accession")
+write.csv2(topTab_ISC.IPvsISC.CL.anotada,file.path(resultsDir,"topTab_ISC.IPvsISC.CL.csv"),row.names = TRUE)
+
+##llista topTab_ISC.IPvsSHAM.IP
+topTab_ISC.IPvsSHAM.IP.anotada <- merge(topTab_ISC.IPvsSHAM.IP,anotaTop,by=0)
+topTab_ISC.IPvsSHAM.IP.anotada <- topTab_ISC.IPvsSHAM.IP.anotada[order(-topTab_ISC.IPvsSHAM.IP.anotada$B),]
+rownames(topTab_ISC.IPvsSHAM.IP.anotada) <- topTab_ISC.IPvsSHAM.IP.anotada$Row.names
+topTab_ISC.IPvsSHAM.IP.anotada <- topTab_ISC.IPvsSHAM.IP.anotada[,-1]
+head(topTab_ISC.IPvsSHAM.IP.anotada)
+topTab_ISC.IPvsSHAM.IP.anotada <- topTab_ISC.IPvsSHAM.IP.anotada[,c(7,1:6,8)]
+colnames(topTab_ISC.IPvsSHAM.IP.anotada) <- c("Symbol","logFC","AveExpr","t","P.Value",
+                                               "adj.P.Val","B","Accession")
+write.csv2(topTab_ISC.IPvsSHAM.IP.anotada,file.path(resultsDir,"topTab_ISC.IPvsSHAM.IP.csv"),row.names = TRUE)
+
+##llista topTab_ISC.CLvsSHAM.CL
+topTab_ISC.CLvsSHAM.CL.anotada <- merge(topTab_ISC.CLvsSHAM.CL,anotaTop,by=0)
+topTab_ISC.CLvsSHAM.CL.anotada <- topTab_ISC.CLvsSHAM.CL.anotada[order(-topTab_ISC.CLvsSHAM.CL.anotada$B),]
+rownames(topTab_ISC.CLvsSHAM.CL.anotada) <- topTab_ISC.CLvsSHAM.CL.anotada$Row.names
+topTab_ISC.CLvsSHAM.CL.anotada <- topTab_ISC.CLvsSHAM.CL.anotada[,-1]
+head(topTab_ISC.CLvsSHAM.CL.anotada)
+topTab_ISC.CLvsSHAM.CL.anotada <- topTab_ISC.CLvsSHAM.CL.anotada[,c(7,1:6,8)]
+colnames(topTab_ISC.CLvsSHAM.CL.anotada) <- c("Symbol","logFC","AveExpr","t","P.Value",
+                                               "adj.P.Val","B","Accession")
+write.csv2(topTab_ISC.CLvsSHAM.CL.anotada,file.path(resultsDir,"topTab_ISC.CLvsSHAM.CL.csv"),row.names = TRUE)
+@
+
+
+In tables \ref{tab:top1}, \ref{tab:top2}, \ref{tab:top3} and \ref{tab:top4} the 10 more differentially expressed genes for each comparisons can be found.
+%\begin{table}
+%\tiny
+<<topGenes1, echo=FALSE, results='asis'>>=
+csvtable1<-xtable(topTab_SHAM.IPvsSHAM.CL.anotada[1:10,1:8],caption="10 genes more differentially expressed in comparison SHAM.IPvsSHAM.CL",label="tab:top1")
+print(csvtable1, tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+% \caption{10 genes more differentially expressed in comparison SHAM.IPvsSHAM.CL}
+% \label{tab:top1}
+% \end{table}
+
+%\begin{table}
+%\tiny
+<<topGenes2, echo=FALSE, results='asis'>>=
+csvtable2<-xtable(topTab_ISC.IPvsISC.CL.anotada[1:10,1:8],caption="10 genes more differentially expressed in comparison ISC.IPvsISC.CL",label="tab:top2")
+print(csvtable2, tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+%\caption{10 genes more differentially expressed in comparison ISC.IPvsISC.CL}
+%\label{tab:top2}
+%\end{table}
+
+% \begin{table}
+% \tiny
+<<topGenes3, echo=FALSE, results='asis'>>=
+csvtable3<-xtable(topTab_ISC.IPvsSHAM.IP.anotada[1:10,1:8],caption="10 genes more differentially expressed in comparison ISC.IPvsSHAM.IP",label="tab:top3")
+print(csvtable3, tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+% \caption{10 genes more differentially expressed in comparison ISC.IPvsSHAM.IP}
+% \label{tab:top3}
+% \end{table}
+
+% \begin{table}
+% \tiny
+<<topGenes4, echo=FALSE, results='asis'>>=
+csvtable4<-xtable(topTab_ISC.CLvsSHAM.CL.anotada[1:10,1:8],caption="10 genes more differentially expressed in comparison ISC.CLvsSHAM.CL",label="tab:top4")
+print(csvtable4, tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+% \caption{10 genes more differentially expressed in comparison ISC.CLvsSHAM.CL}
+% \label{tab:top4}
+% \end{table}
+
+\normalsize
+In figure \ref{fig:volcano} the Volcano plot for each comparison can be found:
+
+<<volcanos,echo=FALSE,results='hide',message=FALSE>>=
+library(calibrate)
+listoflist<-list(topTab_SHAM.IPvsSHAM.CL.anotada,topTab_ISC.IPvsISC.CL.anotada,topTab_ISC.IPvsSHAM.IP.anotada,topTab_ISC.CLvsSHAM.CL.anotada)
+listofcomparnames<-c("SHAM.IPvsSHAM.CL","ISC.IPvsISC.CL","ISC.IPvsSHAM.IP","ISC.CLvsSHAM.CL") 
+pdf(file.path(resultsDir,"Volcanos.pdf"))
+par(mfrow=c(2,2))
+for(i in 1:length(listoflist)){
+csv<-listoflist[[i]]
+with(csv, plot(logFC, B, pch=20, main=paste("Volcano plot for:",listofcomparnames[i], sep=" "), xlim=c(min(csv$logFC),max(csv$logFC))))
+abline(v=-1,lty=3)
+abline(v=1,lty=3)
+with(subset(csv, adj.P.Val<.05 & abs(logFC)>1), points(logFC, B, pch=20, col="green"))
+with(subset(csv, adj.P.Val<.05 & abs(logFC)>1), textxy(logFC, B, labs=Transcript.ID.Array.Design., cex=.7,offset=0.3))
+}
+dev.off()
+par(mfrow=c(1,1))
+@
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.6]{results/Volcanos.pdf}
+  \caption{Volcano plot for each comparison.}
+  \label{fig:volcano}
+\end{figure}
+
+<<volcanos2pdf,echo=FALSE>>=
+for(i in 1:length(listoflist)){
+csv<-listoflist[[i]]
+file=paste("VolcanoPlot", listofcomparnames[i], ".pdf", sep="")
+pdf(file=file.path(resultsDir, file), paper="special", width=6, height=6)
+with(csv, plot(logFC, B, pch=20, main=paste("Volcano plot for:",listofcomparnames[i], sep=" "), xlim=c(min(csv$logFC),max(csv$logFC))))
+abline(v=-1,lty=3)
+abline(v=1,lty=3)
+with(subset(csv, adj.P.Val<.05 & abs(logFC)>1), points(logFC, B, pch=20, col="green"))
+with(subset(csv, adj.P.Val<.05 & abs(logFC)>1), textxy(logFC, B, labs=Transcript.ID.Array.Design., cex=.7,offset=0.3))
+dev.off()
+}
+@
+
+<<saveRDA,echo=FALSE>>=
+save(topTab_SHAM.IPvsSHAM.CL.anotada,topTab_ISC.IPvsISC.CL.anotada,topTab_ISC.IPvsSHAM.IP.anotada,topTab_ISC.CLvsSHAM.CL.anotada,topTab_SHAM.IPvsSHAM.CL,topTab_ISC.IPvsISC.CL,topTab_ISC.IPvsSHAM.IP,topTab_ISC.CLvsSHAM.CL,targets,targetsSHAM,targetsISC,fit.main.ISC,fit.main.SHAM,fit.main2,dades,data,data.eset,targets,file=file.path(resultsDir,"afterTopTabs.Rda"))
+@
+

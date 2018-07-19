@@ -1,0 +1,155 @@
+File	Category	Subcateg	Description
+ExpressionAndTop_APP.12MvsAPP.6M.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: APP.12MvsAPP.6M
+ExpressionAndTop_APP.12MvsWT.12M.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: APP.12MvsWT.12M
+ExpressionAndTop_APP.18MvsAPP.6M.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: APP.18MvsAPP.6M
+ExpressionAndTop_APP.18MvsWT.18M.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: APP.18MvsWT.18M
+ExpressionAndTop_APP.24MvsAPP.6M.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: APP.24MvsAPP.6M
+ExpressionAndTop_APP.24MvsWT.24M.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: APP.24MvsWT.24M
+ExpressionAndTop_APP.6MvsWT.6M.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: APP.6MvsWT.6M
+ExpressionAndTop_Effect.APP12M.Corrected.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: Effect.APP12M.Corrected
+ExpressionAndTop_Effect.APP18M.Corrected.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: Effect.APP18M.Corrected
+ExpressionAndTop_Effect.APP24M.Corrected.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: Effect.APP24M.Corrected
+ExpressionAndTop_WT.12MvsWT.6M.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: WT.12MvsWT.6M
+ExpressionAndTop_WT.18MvsWT.6M.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: WT.18MvsWT.6M
+ExpressionAndTop_WT.24MvsWT.6M.xls	ANALYSIS	NA	Top Table and gene expression in xls format for the comparison: WT.24MvsWT.6M
+numGenesChanged.xls	ANALYSIS	NA	Number of selectable genes in the comparisons
+SDplot.pdf	ANALYSIS	NA	Standard deviation of all probesets in the array
+topTab.APP.12MvsAPP.6M.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: APP.12MvsAPP.6M
+topTab.APP.12MvsWT.12M.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: APP.12MvsWT.12M
+topTab.APP.18MvsAPP.6M.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: APP.18MvsAPP.6M
+topTab.APP.18MvsWT.18M.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: APP.18MvsWT.18M
+topTab.APP.24MvsAPP.6M.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: APP.24MvsAPP.6M
+topTab.APP.24MvsWT.24M.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: APP.24MvsWT.24M
+topTab.APP.6MvsWT.6M.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: APP.6MvsWT.6M
+topTab.Effect.APP12M.Corrected.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: Effect.APP12M.Corrected
+topTab.Effect.APP18M.Corrected.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: Effect.APP18M.Corrected
+topTab.Effect.APP24M.Corrected.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: Effect.APP24M.Corrected
+topTab.WT.12MvsWT.6M.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: WT.12MvsWT.6M
+topTab.WT.18MvsWT.6M.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: WT.18MvsWT.6M
+topTab.WT.24MvsWT.6M.html	ANALYSIS	NA	Top Table and ranked genes in html format for the comparison: WT.24MvsWT.6M
+Volcanos1.pdf	ANALYSIS	NA	Volcano plot for the comparisons performed
+Volcanos2.pdf	ANALYSIS	NA	Volcano plot for the comparisons performed
+Volcanos3.pdf	ANALYSIS	NA	Volcano plot for the comparisons performed
+Anotations.All.csv	ANNOT	NA	Gene annotations for all genes in the array in xls format
+Anotations.All.html	ANNOT	NA	Gene annotations for all genes in the array  in html format
+Anotations.Filtered.csv	ANNOT	NA	Gene annotations for all filtered genes analyzed in xls format
+Anotations.Filtered.html	ANNOT	NA	Gene annotations for all filtered genes analyzed in html format
+Normalized.All.xls	DATA	NA	Normalized values for all genes
+Normalized.Filtered.xls	DATA	NA	Normalized values for filtered genes
+targets.MHG.D1957.csv	DATA	NA	Samples and covariates information file
+GOResults.BP.APP.12MvsAPP.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: APP.12MvsAPP.6M
+GOResults.BP.APP.12MvsWT.12M.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: APP.12MvsWT.12M
+GOResults.BP.APP.18MvsAPP.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: APP.18MvsAPP.6M
+GOResults.BP.APP.18MvsWT.18M.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: APP.18MvsWT.18M
+GOResults.BP.APP.24MvsAPP.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: APP.24MvsAPP.6M
+GOResults.BP.APP.24MvsWT.24M.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: APP.24MvsWT.24M
+GOResults.BP.APP.6MvsWT.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: APP.6MvsWT.6M
+GOResults.BP.Effect.APP12M.Corrected.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: Effect.APP12M.Corrected
+GOResults.BP.Effect.APP18M.Corrected.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: Effect.APP18M.Corrected
+GOResults.BP.Effect.APP24M.Corrected.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: Effect.APP24M.Corrected
+GOResults.BP.WT.12MvsWT.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: WT.12MvsWT.6M
+GOResults.BP.WT.18MvsWT.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: WT.18MvsWT.6M
+GOResults.BP.WT.24MvsWT.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology BP for comparison: WT.24MvsWT.6M
+GOResults.CC.APP.12MvsAPP.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: APP.12MvsAPP.6M
+GOResults.CC.APP.12MvsWT.12M.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: APP.12MvsWT.12M
+GOResults.CC.APP.18MvsAPP.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: .APP.18MvsAPP.6M
+GOResults.CC.APP.18MvsWT.18M.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: APP.18MvsWT.18M
+GOResults.CC.APP.24MvsAPP.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: APP.24MvsAPP.6M
+GOResults.CC.APP.24MvsWT.24M.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: APP.24MvsWT.24M
+GOResults.CC.APP.6MvsWT.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: APP.6MvsWT.6M
+GOResults.CC.Effect.APP12M.Corrected.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: Effect.APP12M.Corrected
+GOResults.CC.Effect.APP18M.Corrected.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: Effect.APP18M.Corrected
+GOResults.CC.Effect.APP24M.Corrected.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: Effect.APP24M.Corrected
+GOResults.CC.WT.12MvsWT.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: WT.12MvsWT.6M
+GOResults.CC.WT.18MvsWT.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: WT.18MvsWT.6M
+GOResults.CC.WT.24MvsWT.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology CC for comparison: WT.24MvsWT.6M
+GOResults.MF.APP.12MvsAPP.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: APP.12MvsAPP.6M
+GOResults.MF.APP.12MvsWT.12M.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: APP.12MvsWT.12M
+GOResults.MF.APP.18MvsAPP.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: .APP.18MvsAPP.6M
+GOResults.MF.APP.18MvsWT.18M.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: APP.18MvsWT.18M
+GOResults.MF.APP.24MvsAPP.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: APP.24MvsAPP.6M
+GOResults.MF.APP.24MvsWT.24M.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: APP.24MvsWT.24M
+GOResults.MF.APP.6MvsWT.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: APP.6MvsWT.6M
+GOResults.MF.Effect.APP12M.Corrected.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: Effect.APP12M.Corrected
+GOResults.MF.Effect.APP18M.Corrected.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: Effect.APP18M.Corrected
+GOResults.MF.Effect.APP24M.Corrected.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: Effect.APP24M.Corrected
+GOResults.MF.WT.12MvsWT.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: WT.12MvsWT.6M
+GOResults.MF.WT.18MvsWT.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: WT.18MvsWT.6M
+GOResults.MF.WT.24MvsWT.6M.html	GO	NA	Enriched analysis for differential expressed genes in ontology MF for comparison: WT.24MvsWT.6M
+2018-04-MarHernandez-VHIR-StudyProposal-D1957_V3.pdf	INFO	NA	Study Proposal
+2018-05-MarHernandez-VHIR-D1957-ClariomS-MainReport.pdf	INFO	NA	Report with description of the main results
+HeatmapEffectAging.pdf	MULTCOMP	NA	Heatmap made from genes selected from multiple comparisons: Effect of Aging
+HeatmapEffectAPPCorrected.pdf	MULTCOMP	NA	Heatmap made from genes selected from multiple comparisons: EffectAPPCorrected
+HeatmapEffectAPPvs6M.pdf	MULTCOMP	NA	Heatmap made from genes selected from multiple comparisons: EffectAPPvs6M
+HeatmapEffectAPPvsWT.pdf	MULTCOMP	NA	Heatmap made from genes selected from multiple comparisons: EffectAPPvsWT
+sharedElements.EffectAging.P.Value0.01.logFC0.75.xls	MULTCOMP	NA	Genes selected from multiple comparisons: Effect of Aging
+sharedElements.EffectAPPCorrected.P.Value0.01.logFC1.xls	MULTCOMP	NA	Genes selected from multiple comparisons: EffectAPPCorrected
+sharedElements.EffectAPPvs6M.P.Value0.01.logFC1.xls	MULTCOMP	NA	Genes selected from multiple comparisons: EffectAPPvs6M
+sharedElements.EffectAPPvsWT.P.Value0.05.logFC0.xls	MULTCOMP	NA	Genes selected from multiple comparisons: EffectAPPvsWT
+VennDiagramEffectAgingPValue001logFC075.pdf	MULTCOMP	NA	Venn Diagram for genes selected from multiple comparisons: Effect of Aging
+VennDiagramEffectAPPCorrectedPValue001logFC1.pdf	MULTCOMP	NA	Venn Diagram for genes selected from multiple comparisons: EffectAPPCorrected
+VennDiagramEffectAPPvs6MPValue001logFC1.pdf	MULTCOMP	NA	Venn Diagram for genes selected from multiple comparisons: EffectAPPvs6M
+VennDiagramEffectAPPvsWTPValue005logFC0.pdf	MULTCOMP	NA	Venn Diagram for genes selected from multiple comparisons: EffectAPPvsWT
+BoxplotNorm.pdf	QC	NA	Intensity distribution for normalized data
+BoxplotRaw.pdf	QC	NA	Intensity distribution for raw data
+PCANormGenotype.pdf	QC	NA	Principal Component Analysis for normalized data colored by Genotype
+PCANorm.pdf	QC	NA	Principal Component Analysis for normalized data colored by Group
+PCANormTime.pdf	QC	NA	Principal Component Analysis for normalized data colored by Time
+PCAraw.pdf	QC	NA	Extra qualitty control plots for raw data
+QCDir.Norm/index.html	QC	NA	Quality control plots of normalized data with ArrayQualityMetrics package
+QCDir.Raw/index.html	QC	NA	Quality control plots of raw data with ArrayQualityMetrics package
+QCRawData.pdf	QC	NA	Extra qualitty control plots for raw data
+QCRNormData.pdf	QC	NA	Extra qualitty control plots for normalized data
+ReactomePABarplot.APP.12MvsAPP.6M.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: APP.12MvsAPP.6M
+ReactomePABarplot.APP.12MvsWT.12M.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: APP.12MvsWT.12M
+ReactomePABarplot.APP.18MvsAPP.6M.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: APP.18MvsAPP.6M
+ReactomePABarplot.APP.18MvsWT.18M.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: APP.18MvsWT.18M
+ReactomePABarplot.APP.24MvsAPP.6M.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: APP.24MvsAPP.6M
+ReactomePABarplot.APP.24MvsWT.24M.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: APP.24MvsWT.24M
+ReactomePABarplot.APP.6MvsWT.6M.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: APP.6MvsWT.6M
+ReactomePABarplotEffectAPP12MCorrected.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: EffectAPP12MCorrected
+ReactomePABarplot.Effect.APP18M.Corrected.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: Effect.APP18M.Corrected
+ReactomePABarplot.Effect.APP24M.Corrected.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: Effect.APP24M.Corrected
+ReactomePABarplot.WT.12MvsWT.6M.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: WT.12MvsWT.6M
+ReactomePABarplot.WT.18MvsWT.6M.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: WT.18MvsWT.6M
+ReactomePABarplot.WT.24MvsWT.6M.pdf	REACTOME	NA	Bar plot of enriched pathways for differential expressed genes for comparison: WT.24MvsWT.6M
+ReactomePAcnetplot.APP.12MvsAPP.6M.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: APP.12MvsAPP.6M
+ReactomePAcnetplotAPP12MvsAPP6M.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: APP12MvsAPP6M
+ReactomePAcnetplot.APP.12MvsWT.12M.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: APP.12MvsWT.12M
+ReactomePAcnetplot.APP.18MvsAPP.6M.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: APP.18MvsAPP.6M
+ReactomePAcnetplot.APP.18MvsWT.18M.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: APP.18MvsWT.18M
+ReactomePAcnetplot.APP.24MvsAPP.6M.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: APP.24MvsAPP.6M
+ReactomePAcnetplot.APP.24MvsWT.24M.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: APP.24MvsWT.24M
+ReactomePAcnetplot.APP.6MvsWT.6M.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: APP.6MvsWT.6M
+ReactomePAcnetplotEffectAPP12MCorrected.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: EffectAPP12MCorrected
+ReactomePAcnetplot.Effect.APP18M.Corrected.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: Effect.APP18M.Corrected
+ReactomePAcnetplot.Effect.APP24M.Corrected.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: Effect.APP24M.Corrected
+ReactomePAcnetplot.WT.12MvsWT.6M.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: WT.12MvsWT.6M
+ReactomePAcnetplot.WT.18MvsWT.6M.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: WT.18MvsWT.6M
+ReactomePAcnetplot.WT.24MvsWT.6M.pdf	REACTOME	NA	Network of enriched pathways for differential expressed genes for comparison: WT.24MvsWT.6M
+ReactomePADotplot.APP.12MvsAPP.6M.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: APP.12MvsAPP.6M
+ReactomePADotplot.APP.12MvsWT.12M.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: APP.12MvsWT.12M
+ReactomePADotplot.APP.18MvsAPP.6M.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: APP.18MvsAPP.6M
+ReactomePADotplot.APP.18MvsWT.18M.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: APP.18MvsWT.18M
+ReactomePADotplot.APP.24MvsAPP.6M.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: APP.24MvsAPP.6M
+ReactomePADotplot.APP.24MvsWT.24M.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: APP.24MvsWT.24M
+ReactomePADotplot.APP.6MvsWT.6M.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: APP.6MvsWT.6M
+ReactomePADotplotEffectAPP12MCorrected.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: EffectAPP12MCorrected
+ReactomePADotplot.Effect.APP18M.Corrected.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: Effect.APP18M.Corrected
+ReactomePADotplot.Effect.APP24M.Corrected.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: Effect.APP24M.Corrected
+ReactomePADotplot.WT.12MvsWT.6M.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: WT.12MvsWT.6M
+ReactomePADotplot.WT.18MvsWT.6M.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: WT.18MvsWT.6M
+ReactomePADotplot.WT.24MvsWT.6M.pdf	REACTOME	NA	Dot plot of enriched pathways for differential expressed genes for comparison: WT.24MvsWT.6M
+ReactomePA.Results.APP.12MvsAPP.6M.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: APP.12MvsAPP.6M
+ReactomePA.Results.APP.12MvsWT.12M.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: APP.12MvsWT.12M
+ReactomePA.Results.APP.18MvsAPP.6M.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: APP.18MvsAPP.6M
+ReactomePA.Results.APP.18MvsWT.18M.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: APP.18MvsWT.18M
+ReactomePA.Results.APP.24MvsAPP.6M.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: APP.24MvsAPP.6M
+ReactomePA.Results.APP.24MvsWT.24M.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: APP.24MvsWT.24M
+ReactomePA.Results.APP.6MvsWT.6M.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: APP.6MvsWT.6M
+ReactomePA.Results.Effect.APP12M.Corrected.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: Effect.APP12M.Corrected
+ReactomePA.Results.Effect.APP18M.Corrected.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: Effect.APP18M.Corrected
+ReactomePA.Results.Effect.APP24M.Corrected.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: Effect.APP24M.Corrected
+ReactomePA.Results.WT.12MvsWT.6M.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: WT.12MvsWT.6M
+ReactomePA.Results.WT.18MvsWT.6M.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: WT.18MvsWT.6M
+ReactomePA.Results.WT.24MvsWT.6M.xls	REACTOME	NA	List of enriched pathways for differential expressed genes for comparison: WT.24MvsWT.6M

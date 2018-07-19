@@ -1,0 +1,317 @@
+
+<<setDirs,echo=FALSE>>=
+ mainDir <-getwd()
+ workingDir <- mainDir
+ dataDir <-file.path(mainDir, "dades")
+ celDir <-  file.path(workingDir, "celfiles")
+ celDir2 <-  file.path(workingDir, "celfiles2")
+ resultsDir <- file.path(workingDir, "results")
+ imagesDir<-file.path(mainDir,"images")
+@
+
+<<options,echo=FALSE>>=
+ require(knitr)
+ opts_chunk$set(fig.path = imagesDir, echo=FALSE, message=FALSE,warnings = FALSE )
+ options(warn=-1)
+@
+
+<<loadData2,echo=FALSE>>=
+load(file.path(resultsDir,"afterTopTabs.Rda"))
+@
+
+\subsection{Multiple comparisons between gene lists}
+
+In order to find miRNAs which have been afected by two or more treatments, a multiple comparisons analysis has been performed.  Associated to each group of multiple comparisons, Venn diagrams were plotted. Files \texttt{VennDiagram.XXX$_$YYY.pdf} and \texttt{multComp.XXX$_$YYY.csv}, where \texttt{XXXYYY}, refers to every group of comparisons performed.
+
+ <<VDfunction,echo=FALSE,results='hide'>>=
+ vennfrom2csv<-function(file1,name1,file2,name2,FC,pval) {
+   ##seleccionem els cutoffs
+   ##llista1
+   pass1 <- file1[which(file1$P.Value<pval & abs(file1$logFC)>FC),]
+   #dim(pass1)
+   ##llista2
+   pass2 <- file2[which(file2$P.Value<pval & abs(file2$logFC)>FC),]
+   #dim(pass2)
+
+   ####mirem que no entrades repetides per Affy ID i s'ajunten
+   #list1 <- as.character(sort(unique(pass1$X)))
+   #length(list1)
+   #list2 <- as.character(sort(unique(pass2$X)))
+   #length(list2)
+
+   list1 <- as.character(rownames(pass1))
+   #length(list1)
+   list2 <- as.character(rownames(pass2))
+   #length(list2)
+
+   list <- c(list1, list2)
+   #length(list)
+   list <- sort(unique(list))
+   #length(list)
+
+   ####es crea un data.frame que omplim de 0 i després de 1 si hi coexisteixen en les dues llistes
+   df <- data.frame(genes = list, l1 = rep(0,length(list)), l2 = rep(0,length(list)))
+   #head(df)
+
+   df$l1 <- as.numeric((df$genes %in% list1)==T)
+   df$l2 <- as.numeric((df$genes %in% list2)==T)
+
+   ##Fem el diagrama de venn
+   overlap<-calculate.overlap(x=list("list1"=list1,"list2"=list2))
+
+   draw.pairwise.venn(length(overlap$a1),length(overlap$a2),length(overlap$a3),
+                   category=c(name1,name2),scaled = TRUE,euler.d = TRUE,
+                  fill = c("blue", "red"),lty = "blank",cat.pos = c(190, 190))
+
+   ##es grava l'arxiu de text on s'indica quin gen hi és a cada venn
+   datos<-file2[which(rownames(file2) %in% df$genes),]
+   datos<-datos[,-c(3:length(colnames(datos)))]
+   rownames(df)<-df$genes
+   datos2<-merge(datos,df,by=0)
+   datos2<-datos2[,-c(3,4)]
+   colnames(datos2)<-c("AffyID","Symbols",name1,name2)
+   write.csv(datos2, file=file.path(resultsDir,paste("mult.comp.",name1,"_",name2,".csv",sep = "")),sep=";")
+ }
+@
+
+
+Venn diagram for multiple comparison SHAM.IPvsSHAM.CL versus ISC.IPvs ISC.CL is shown in figure \ref{fig:venn1}. \textbf{No miRNAs in common with log fold change of 0 and non adjusted pvalue of 0.01} between the two comparisons.
+
+<<venn1, echo=FALSE,results='hide',message=FALSE>>=
+ library(VennDiagram)
+ library(gridExtra) #para poder añadir el título al gráfico
+ top1 <- topTab_SHAM.IPvsSHAM.CL
+ name1 <-"SHAM.IPvsSHAM.CL"
+ top2 <- topTab_ISC.IPvsISC.CL
+ name2<-"ISC.IPvsISC.CL"
+
+ pdf(file.path(resultsDir,"VennDiagram1.pdf"))
+ grid.arrange(gTree(children=vennfrom2csv(top1,name1,top2,name2,0,0.01)),top=paste("Venn Diagram for: ",name1, " vs ",name2," (logFC 0 & pval 0.01)",sep=""))
+ dev.off()
+ @
+
+\begin{figure}
+ \centering
+ \includegraphics[scale=0.4]{results/VennDiagram1.pdf}
+ \caption{Venn diagram for comparisons SHAM.IPvsSHAM.CL vs ISC.IPvsISC.CL}
+   \label{fig:venn1}
+ \end{figure}
+ 
+ Venn diagram for multiple comparison ISC.IPvsSHAM.IP versus ISC.CLvs SHAM.CL is shown in figure \ref{fig:venn2}. In this multiple comparison \textbf{4 miRNAs in common with log fold change of 0 and non adjusted pvalue of 0.01} beween the two comparisons.
+
+
+ <<venn2,echo=FALSE,results='hide',message=FALSE>>=
+ top3 <- topTab_ISC.IPvsSHAM.IP
+ name3 <-"ISC.IPvsSHAM.IP"
+ top4 <- topTab_ISC.CLvsSHAM.CL
+ name4<-"ISC.CLvsSHAM.CL"
+ pdf(file.path(resultsDir,"VennDiagram2.pdf"))
+ grid.arrange(gTree(children=vennfrom2csv(top3,name3,top4,name4,0,0.01)),top=paste("Venn Diagram for: ",name3, " vs ",name4," (logFC 0 & pval 0.01)",sep=""))
+ dev.off()
+@
+ 
+ \begin{figure}
+   \centering
+   \includegraphics[scale=0.4]{results/VennDiagram2.pdf}
+ \caption{Venn diagram for comparisons ISC.IPvsSHAM.IP vs ISC.CLvsSHAM.CL}
+   \label{fig:venn2}
+ \end{figure}
+ 
+ Venn diagram for multiple comparison ISC.IPvsISC.CL versus ISC.IPvs SHAM.IP is shown in figure \ref{fig:venn3}. \textbf{2 miRNAs in common with log fold change of 0 and non adjusted pvalue of 0.01} between the two comparisons.
+
+
+ <<venn3, echo=FALSE,results='hide',message=FALSE>>=
+ top5 <- topTab_ISC.IPvsSHAM.IP
+ name5 <-"ISC.IPvsSHAM.IP"
+ top6 <- topTab_ISC.IPvsISC.CL
+ name6<-"ISC.IPvsISC.CL"
+
+ pdf(file.path(resultsDir,"VennDiagram3.pdf"))
+ grid.arrange(gTree(children=vennfrom2csv(top5,name5,top6,name6,0,0.01)),top=paste("Venn Diagram for: ",name5, " vs ",name6," (logFC 0 & pval 0.01)",sep=""))
+ dev.off()
+ @
+
+ \begin{figure}
+   \centering
+   \includegraphics[scale=0.4]{results/VennDiagram3.pdf}
+   \caption{Venn diagram for comparisons ISC.IPvsSHAM.IP vs ISC.IPvsISC.CL}
+   \label{fig:venn3}
+ \end{figure}
+
+\newpage
+ 
+ \subsection{Expression profiles visualization: Heatmaps}
+ It is interesting to look for common patterns of regulation between different experimental conditions. Every clustering is represented in a heatmap shown in files \texttt{HeatMap.XXX$_$YYY.pdf}, where \texttt{XXX$_$YYY} refers to the comparisons used.
+
+ <<prepareData, echo=FALSE,results='hide'>>=
+library(gplots)
+library(Biobase)
+library(limma)
+
+ ##preparar dades per heatmap SHAM
+ res1<-decideTests(fit.main.SHAM,method="separate", p.value=0.05, lfc=0.5,
+                   adjust.method = "none")
+ sum.res.rows1<-apply(abs(res1),1,sum)
+ res.selected1<-res1[sum.res.rows1!=0,]
+ print(summary(res1))
+
+ probeNames<-rownames(res1)
+ probeNames.selected<-probeNames[sum.res.rows1!=0]
+ #dels miRNAs seleccionats agafem les dades d'expressió
+ data.selected.SHAM<-data[probeNames.selected,]
+ #seleccionem les mostres de la comparació
+ data.selected.SHAM <- data.selected.SHAM[,c(3,4,9:12,17,18)]
+ #busquem els miRNAs perque sortin al heatmap
+ miRNA.SHAM <- topTab_SHAM.IPvsSHAM.CL.anotada[rownames(data.selected.SHAM),1:8]
+
+ rnames.SHAM<-miRNA.SHAM$Symbol
+ data2HM.SHAM<-data.matrix(data.selected.SHAM)
+ rownames(data2HM.SHAM) <- rnames.SHAM
+ order_data.SHAM<-data2HM.SHAM[,c(1,3,5,2,4,6)]
+
+ #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ ##preparar dades per heatmap ISC
+res.ISC<-decideTests(fit.main.ISC,method="separate", p.value=0.05, lfc=0.5,
+                     adjust.method="none")
+ sum.res.rows.ISC<-apply(abs(res.ISC),1,sum)
+ res.selected.ISC<-res.ISC[sum.res.rows.ISC!=0,]
+ print(summary(res.ISC))
+
+ probeNames.ISC<-rownames(res.ISC)
+ probeNames.selected.ISC<-probeNames.ISC[sum.res.rows.ISC!=0]
+ #seleccionem les mostres de la comparació
+ data.selected.ISC<-data[probeNames.selected.ISC,]
+ data.selected.ISC <- data.selected.ISC[,-c(3,4,9:12,17,18)]
+ #busquem els miRNAs perque sortin al heatmap
+ miRNA.ISC <- topTab_ISC.IPvsISC.CL.anotada[rownames(data.selected.ISC),1:8]
+
+ rnames.ISC<-miRNA.ISC$Symbol
+ data2HM.ISC<-data.matrix(data.selected.ISC)
+ rownames(data2HM.ISC) <- rnames.ISC
+ order_data.ISC<-data2HM.ISC[,c(1,3,5,7,9,11,13,2,4,6,8,10,12,14)]
+
+
+ #grupColors <- targets$Colores
+ mypalette <- colorRampPalette(c("blue", "white", "red"))(n = 299)
+ @
+ \\
+Heatmap for comparison \textbf{SHAM.IPvsSHAM.CL} (figure \ref{fig:heatmap1}) has been performed with miRNAs with a \textbf{pValue 0.05 \& logFC 0.5}, given a total of \textbf{92 miRNAs} included. Hierarquical clustering for samples (columns), shows a perfect classification of all samples.
+\newpage
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.5]{results/HeatmapSHAMIPvsSHAMCL.pdf}
+\caption{\label{fig:heatmap1}Heatmap for comparison SHAM.IPvsSHAM.CL with pValue 0.05 $&$ logFC 0.5}}
+\end{figure}
+
+Heatmap for comparison \textbf{ISC.IPvsISC.CL} (figure \ref{fig:heatmap3}) has been performed with miRNAs with a \textbf{pValue 0.05 \& logFC 0.5}, given a total of \textbf{32 miRNAs} included. Hierarquical clustering for samples (columns), shows a perfect classification of all samples except for sample \texttt{1BT.ISC.IP.1}.
+\\
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.5]{results/HeatmapISCIPvsISCCL.pdf}
+\caption{\label{fig:heatmap3}Heatmap for comparison ISC.IPvsISC.CL with pValue 0.05 $&$ logFC 0.5}}
+\end{figure}
+
+
+\\
+ <<preparedata2,echo=FALSE,results='hide'>>=
+ res2<-decideTests(fit.main2,method="separate", p.value=0.05, lfc=0.5,adjust.method="none")
+ sum.res.rows2<-apply(abs(res2),1,sum)
+ res.selected2<-res2[sum.res.rows2!=0,]
+ print(summary(res2))
+
+ probeNames<-rownames(res2)
+ probeNames.selected<-probeNames[sum.res.rows2!=0]
+ #seleccionem les mostres de la comparació
+ data.selected.ALL<-data[probeNames.selected,]
+ #busquem els miRNAs perque sortin al heatmap
+ miRNA.ALL <- topTab_ISC.IPvsISC.CL.anotada[rownames(data.selected.ALL),1:8]
+
+ rnames.ALL<-miRNA.ALL$Symbol
+ data2HM.ALL<-data.matrix(data.selected.ALL)
+ rownames(data2HM.ALL) <- rnames.ALL
+ order_data.ALL<-data2HM.ALL[,c(1,5,7,13,15,19,21,23,2,6,8,14,16,20,22,24,3,9,11,17,4,10,12,18)]
+
+ par(mfrow=c(1,1),cex.main=0.6)
+ @
+
+Heatmap for multiple comparison \textbf{ISC.IPvsSHAM.IP versus ISC.CLvs SHAM.CL} (figure \ref{fig:heatmap2}) has been performed with miRNAs with a \textbf{pValue 0.05 \& logFC 0.5}, given a total of \textbf{181 miRNAs} included.
+
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.5]{results/HeatmapMultipleComparison.pdf}
+\caption{\label{fig:heatmap2}Heatmap for multiple comparison SHAM.IPvsSHAM.CL versus ISC.IPvsISC.CL with pValue 0.05 $&$ logFC 0.5}}
+\end{figure}
+
+
+ <<heatmaps2pdf,results='hide',echo=FALSE>>=
+ pdf(file.path(resultsDir,"HeatmapSHAMIPvsSHAMCL.pdf"))
+ par(mfrow=c(1,1),cex.main=0.7)
+ heatmap.2(order_data.SHAM,
+           Rowv=TRUE,
+           #Colv=FALSE,
+           main="HeatMap for SHAM.IPvsSHAM.CL pValue 0.05 & logFC 0.5",
+           scale="row",
+           col=mypalette,
+           sepcolor="white",
+           sepwidth=c(0.05,0.05),
+           cexRow=0.5,
+           cexCol=0.6,
+           key=FALSE,
+           density.info="histogram",
+           tracecol=NULL,
+           srtCol=30,
+           ColSideColors = c(rep("darkgreen",3 ),rep("lightgreen",3))
+           )
+ dev.off()
+
+ pdf(file.path(resultsDir,"HeatmapISCIPvsISCCL.pdf"))
+ par(mfrow=c(1,1),cex.main=0.7)
+ heatmap.2(order_data.ISC,
+           Rowv=TRUE,
+           #Colv=FALSE,
+           main="HeatMap for ISC.IPvsISC.CL pValue 0.05 & logFC 0.5",
+           scale="row",
+           col=mypalette,
+           sepcolor="white",
+           sepwidth=c(0.05,0.05),
+           cexRow=0.5,
+           cexCol=0.6,
+           key=FALSE,
+           density.info="histogram",
+           tracecol=NULL,
+           srtCol=30,
+           ColSideColors = c(rep("darkblue",7 ),rep("lightblue",7))
+           )
+ dev.off()
+
+ pdf(file.path(resultsDir,"HeatmapMultipleComparison.pdf"))
+ par(mfrow=c(1,1),cex.main=0.7)
+ heatmap.2(order_data.ALL,
+           Rowv=TRUE,
+           #Colv=FALSE,
+           main="HeatMap for ISC.IPvsSHAM.IP_ISC.CLvsSHAM.CL pValue 0.05 & logFC 0.5",
+           scale="row",
+           col=mypalette,
+           sepcolor="white",
+           sepwidth=c(0.05,0.05),
+           cexRow=0.5,
+           cexCol=0.6,
+           key=FALSE,
+           density.info="histogram",
+           tracecol=NULL,
+           srtCol=30,
+           ColSideColors = c(rep("darkblue", 8),rep("lightblue", 8),
+                             rep("darkgreen",4 ),rep("lightgreen",4))
+           )
+ dev.off()
+ @
+ 
+\newpage
+\section{Conclusions}
+The present study was intended to find differential expressed miRNAs in mouse brain sample from two different regions. One group of mice where under the effect of ischemia, to mimic the effects of stroke, and the other group, only undergo the surgical process.
+The 24 samples were processed in a microarray plate (miRNA 4.1 Array plate), and after quality control checks, none of them had to be rejected for differential expression analysis. It is important to note that different samples groups were quite mixed in Principal Component Analysis and hierarquical clustering plots.
+Four comparisons have been performed with poor results in different number of genes significantly expressed. Venn diagrams has been drawn to see common miRNAs in comparisons SHAM.IPvsSHAM.CL vs ISC.IPvsISC.CL, but \textbf{no miRNAs in common} have been found. In comparisons ISC.IPvsSHAM.IP vs ISC.CLvsSHAM.CL \textbf{four miRNAs in common} have been found. Finally in comparison SHAM.IPvsSHAM.CL versus ISC.IPvsISC.CL, \textbf{2 miRNAs in common} have been found. 
+In the same way, heatmaps has been plot, but no clear patters of common expression have been observed.

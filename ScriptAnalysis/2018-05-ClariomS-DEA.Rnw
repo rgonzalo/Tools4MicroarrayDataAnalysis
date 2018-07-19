@@ -1,0 +1,497 @@
+\textbf{Data filtering}
+<<setDirs,echo=FALSE>>=
+mainDir <-getwd()
+workingDir <- mainDir
+dataDir <-file.path(mainDir, "dades")
+resultsDir <- file.path(workingDir, "results")
+imagesDir<-file.path(mainDir,"images")
+@
+
+
+<<loadlib,echo=FALSE,results='hide',message=FALSE>>=
+library(genefilter)
+library(clariomsmousetranscriptcluster.db)
+require(limma)
+require(ReportingTools)
+require(lattice)
+require(xtable)
+library(annotate)
+library(annaffy)
+require(ggplot2)
+source("https://raw.githubusercontent.com/rgonzalo/GitBackupScripts/master/multiplot/multiplotfunction.R")
+source("https://raw.githubusercontent.com/uebvhir/UEB_NumGenesChanged/master/UEB_NumGenesChangedFunction.R") 
+library(WriteXLS)
+library(gdata)
+@
+
+<<options,echo=FALSE>>=
+require(knitr)
+opts_chunk$set(fig.path = imagesDir, echo=FALSE, message=FALSE,warnings = FALSE )
+options(warn=-1)
+@
+
+<<loadData,echo=FALSE>>=
+load(file.path(dataDir,"normData.Rda"))
+@
+
+Usually, in order to increase statistical power and reduce unnecessary noise some genes that
+cannot be considered to be either expressed or differential expressed are removed. To be sure that no gene that is differential expressed are removed, first of all the standard deviations of all genes in the array are calculated, ordered and plotted. If a gene have change due to experimental conditions, one expect that the standard deviation among samples could be high, but the sure thing is that standard deviations of genes without changes among experimental conditions, will be very low.
+
+<<SDplot,echo=FALSE,results='hide',message=FALSE, eval=FALSE>>=
+var <- apply(exprs(eset_rma),1,sd)
+var <- var[order(var)]
+pdf(file.path(resultsDir,"SDplot.pdf"))
+  plot(1:length(var),var, xlab="features",ylab="Standard deviation",las=2)
+  abline(v=0.8*length(var),lty=3, col="red")
+dev.off()
+@
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[with=0.5]{results/SDplot.pdf}
+  \caption{Standard deviation of all probesets in the array. Red line marks 80\% of all probesets.}
+  \label{sdplot}
+\end{figure}
+
+In the figure \ref{sdplot} genes with a high standard deviation (we would expect that these genes correspond to genes that change due to experimental conditions) are below of 20\% of the total probesets in the array. 
+In this study, those genes whose standard deviation was below \textbf{the 80 percentile} of all standard deviations were removed (a very conservative cutoff has been selected to be sure no differential expressed gene is removed). 
+These filters have been applied to all the groups of specific questions, setting a list of \textbf{4060 genes to be included in the analysis}.
+
+<<filtraje,echo=FALSE,results='hide'>>=
+#es canvia el paquet d'anotacions de l'objecte eset_rma
+annotation(eset_rma) <- "clariomsmousetranscriptcluster.db"
+filtered <- nsFilter(eset_rma, require.entrez = TRUE,
+         var.func=IQR, remove.dupEntrez = TRUE, require.GOBP = FALSE,
+         require.GOCC = FALSE, require.GOMF = FALSE,
+         var.filter = TRUE, var.cutoff = 0.8,
+         filterByQuantile = TRUE, feature.exclude = "^AFFX")
+dim(filtered$eset) #4060 12
+eset_filtered <-filtered$eset
+@ 
+
+<<writeNormalized,echo=FALSE, eval=FALSE>>=
+#es canvia el nom dels objectes perque ho posi en el nom de la fulla d'excel.
+NormData <- as.data.frame(exprs(eset_rma))
+FiltData <- as.data.frame(exprs(eset_filtered))
+WriteXLS(NormData, 
+         ExcelFileName = file.path(resultsDir, "Normalized.All.xls"), row.names = TRUE)
+
+WriteXLS(FiltData, 
+         ExcelFileName = file.path(resultsDir, "Normalized.Filtered.xls"), row.names = TRUE)
+save(eset_rma, eset_filtered, file=file.path(dataDir, "FilteredData.Rda"))
+@ 
+
+%--------------------------------------------------------------------------------
+\subsection{Selection of Differential Expressed Genes (DEG)}
+%--------------------------------------------------------------------------------
+
+As previously commented (section \ref{objectives}) the goal of the study is to find differential expressed genes in samples from mice with \texttt{APP-transgene} and samples from \texttt{control} mice at different time points.
+\\ To achieve this main objective, the following comparisons will be performed:
+
+\begin{enumerate}
+ \item Effect of amyloid deposits at each time point:
+    \begin{enumerate}
+      \item APP.6M vs WT.6M = APP.6M - WT.6M	
+      \item APP.12M vs WT.12M = APP.12M - WT.12M
+      \item APP.18M vs WT.18M = APP.18M - WT.18M
+      \item APP.24M vs WT.24M = APP.24M - WT.24M
+    \end{enumerate}
+    
+  \item Effect of aging respect basal time (6M)
+    \begin{enumerate}
+      \item WT.12M vs WT.6M = WT.12M - WT.6M
+      \item WT.18M vs WT.6M = WT.18M - WT.6M
+      \item WT.24M vs WT.6M = WT.24M - WT.6M
+    \end{enumerate}  
+
+   \item Effect of amyloid deposits at each time respect to time 6 months in APP mice
+    \begin{enumerate}
+      \item APP.12M vs APP.6M = APP.12M - APP.6M
+      \item APP.18M vs APP.6M = APP.18M - APP.6M
+      \item APP.24M vs APP.6M = APP.24M - APP.6M
+    \end{enumerate}
+    
+ \item Effect of amyloid deposits at each time respect to time 6 months in APP mice, corrected by mice age:
+    \begin{enumerate}
+      \item {\footnotesize (APP.12M - WT.12M) vs (APP.6M - WT.6M) = (APP.12M - WT.12M) - (APP.6M - WT.6M)}
+      \item {\footnotesize (APP.18M - WT.18M) vs (APP.6M - WT.6M) = (APP.18M - WT.18M) - (APP.6M - WT.6M)}
+      \item {\footnotesize (APP.24M - WT.24M) vs (APP.6M - WT.6M) = (APP.24M - WT.24M) - (APP.6M - WT.6M)}
+    \end{enumerate}
+\end{enumerate}
+\\
+The analysis to select differential expressed genes has been
+based on adjusting a linear model with empirical Bayes moderation of the variance. This is a technique similar to ANOVA specifically developed for microarray data
+analysis by Gordon K Smyth \cite{Smyth:2004}.
+\\
+Each comparison yields a list of genes sorted from most to least differential expressed
+genes which is called generically a top table. The resulting top tables are presented in an html file  with dynamic links to the gene identifiers. Besides for each comparison the corresponding Volcano Plot and a comma-separated file are provided in the \texttt{results} folder.
+\\
+
+<<setContrasts1, echo=FALSE,results='hide'>>=
+lev <- as.factor(targets$Group)
+design <- model.matrix( ~ 0 + lev)
+colnames(design) <- substr(colnames(design),4,10) 
+rownames(design) <- targets$ShortName
+print(design)
+dim(design) #32 8
+qr(as.matrix(design))$rank #8
+is.fullrank(as.matrix(design)) #TRUE
+
+contrastsMatrix <- makeContrasts(APP.6MvsWT.6M = APP.6M - WT.6M,
+                                 APP.12MvsWT.12M = APP.12M - WT.12M,
+                                 APP.18MvsWT.18M = APP.18M - WT.18M,
+                                 APP.24MvsWT.24M = APP.24M - WT.24M,
+                                 WT.12MvsWT.6M = WT.12M - WT.6M,
+                                 WT.18MvsWT.6M = WT.18M - WT.6M,
+                                 WT.24MvsWT.6M = WT.24M - WT.6M,
+                                 APP.12MvsAPP.6M = APP.12M - APP.6M,
+                                 APP.18MvsAPP.6M = APP.18M - APP.6M,
+                                 APP.24MvsAPP.6M = APP.24M - APP.6M,
+                                 Effect.APP12M.Corrected = (APP.12M - WT.12M) - (APP.6M - WT.6M),
+                                 Effect.APP18M.Corrected = (APP.18M - WT.18M) - (APP.6M - WT.6M),
+                                 Effect.APP24M.Corrected = (APP.24M - WT.24M) - (APP.6M - WT.6M),
+                                 levels = design)
+print(contrastsMatrix)
+
+fit <- lmFit(eset_filtered, design)
+fit.main<-contrasts.fit(fit, contrastsMatrix)
+fit.main<-eBayes(fit.main)
+@
+
+
+<<topTablesCTL, echo=FALSE, results='hide',message=FALSE>>=
+#es fa un bucle que genera uns dataframe de les toptables que les utilitzarem després
+listofcoef <- colnames(contrastsMatrix)
+for(i in 1:length(listofcoef)){
+  top <- topTable(fit.main, number = nrow(fit.main), coef = listofcoef[i], adjust = "fdr")
+  assign(paste0("topTab.", listofcoef[i]), data.frame(top))
+}
+@
+
+<<topTables21, echo=FALSE, results='hide',message=FALSE, eval=FALSE>>=
+for(i in 1:length(listofcoef)){
+ deReport <- HTMLReport(shortName = paste0("topTab.",listofcoef[i]) ,
+                       title = paste0("Analysis of Differential Expression for: TopTab.",
+                                      listofcoef[i]), reportDirectory = "./results")
+  publish(fit.main, deReport, eSet = eset_filtered, factor = lev, coef = listofcoef[i], 
+          n = 500, pvalueCutoff = 1)
+  finish(deReport)
+}
+@
+
+\clearpage
+The results in a glance of the number of differential expressed genes in each comparisons at different thresholds, are shown in tables \ref{NGCI}, \ref{NGCII} and \ref{NGCIII}:
+
+<<numgCTL>>=
+#s'afegeix "topTab." a la llista dels coeficients
+listoftop <- list()
+for (i in 1:length(listofcoef)){
+  listoftop[[i]] <- paste0("topTab.",listofcoef[i])
+}
+
+#es fan els vectors amb la funció genesSelectable
+for (i in 1:length(listoftop)){
+  assign(listofcoef[[i]],genesSelectable(eval(parse(text = listoftop[[i]])), 
+                                         0.01,0.05,0.25,0.01,0.05))
+}  
+
+#fem el data frame
+numGenesChanged <- cbind.data.frame(APP.6MvsWT.6M, APP.12MvsWT.12M, APP.18MvsWT.18M,
+                                    APP.24MvsWT.24M, WT.12MvsWT.6M, WT.18MvsWT.6M,
+                                    WT.24MvsWT.6M, APP.12MvsAPP.6M, APP.18MvsAPP.6M,
+                                    APP.24MvsAPP.6M, Effect.APP12M.Corrected, 
+                                    Effect.APP18M.Corrected, Effect.APP24M.Corrected)
+
+WriteXLS(numGenesChanged, ExcelFileName = file.path(resultsDir, "numGenesChanged.xls"), 
+         row.names = TRUE)
+@
+
+%\begin{sidewaystable}
+%\centering
+<<tablenumb1,results='asis'>>=
+x.big2 <- xtable(numGenesChanged[, 1:4], caption="Number of DEG for different thresholds (I)",
+                 label="NGCI")
+print(x.big2, tabular.environment = 'longtable', floating = FALSE,size="tiny")
+@
+%\end{sidewaystable}
+
+<<tablenumb1b,results='asis'>>=
+x.big2 <- xtable(numGenesChanged[, 5:8], caption="Number of DEG for different thresholds (II)",
+                 label="NGCII")
+print(x.big2, tabular.environment = 'longtable', floating = FALSE,size="tiny")
+@
+
+%\begin{sidewaystable}
+%\centering
+<<tablenumb2,results='asis'>>=
+x.big2 <- xtable(numGenesChanged[, 9:13], 
+                 caption="Number of DEG for different thresholds (III)", label="NGCIII")
+print(x.big2, tabular.environment = 'longtable', floating = FALSE,size="tiny")
+@
+%\end{sidewaystable}
+
+%\begin{sidewaystable}
+% \centering
+% <<tablenumb2b,results='asis'>>=
+% x.big2 <- xtable(numGenesChanged[, 11:13], 
+%                  caption="Number of DEG for different thresholds (III)", label="NGCIII")
+% print(x.big2, tabular.environment = 'longtable', floating = FALSE, size="tiny")
+% @
+% %\end{sidewaystable}
+
+\subparagraph{p-values adjustment}
+
+If one wishes to have a statistically grounded criteria, the selection of the differential expressed genes should be based on adjusted p-values (less than 0.01) or $B$ statistic (greater than 0). If these criteria yield too few genes, the table \ref{NGCI} indicate how many genes will yield a less restrictive criteria such as calling those differential expressed genes with, for instance, adjusted p-values less than 0.25 or unadjusted p-values smaller than 0.05.\\
+
+<<anotagenes1,echo=FALSE, eval=FALSE>>=
+#Information in the anotation package
+#for filtered genes
+genesSelected <- rownames(eset_filtered)
+at <- aafTableAnn(genesSelected, "clariomsmousetranscriptcluster.db")
+saveHTML (at, file.path(resultsDir, "Anotations.Filtered.html"), 
+           "Annotations for filtered genes")
+saveText (at, file.path(resultsDir, "Anotations.Filtered.csv"), header=TRUE)
+
+#for all genes
+genesSelected.All <- rownames(eset_rma)
+at <- aafTableAnn(genesSelected.All, "clariomsmousetranscriptcluster.db")
+saveHTML (at, file.path(resultsDir, "Anotations.All.html"), 
+           "Annotations for filtered genes")
+saveText (at, file.path(resultsDir, "Anotations.All.csv"), header=TRUE)
+@
+
+<<toptable2csv1,echo=FALSE>>=
+##con este loop creamos los .csv y tb unos dataframes que utilizaremos despues para las tables del informe
+listofcomparisons <- list(topTab.APP.6MvsWT.6M, topTab.APP.12MvsWT.12M, 
+                          topTab.APP.18MvsWT.18M, topTab.APP.24MvsWT.24M,
+                          topTab.WT.12MvsWT.6M, topTab.WT.18MvsWT.6M,
+                          topTab.WT.24MvsWT.6M, topTab.APP.12MvsAPP.6M,
+                          topTab.APP.18MvsAPP.6M, topTab.APP.24MvsAPP.6M,
+                          topTab.Effect.APP12M.Corrected, topTab.Effect.APP18M.Corrected,
+                          topTab.Effect.APP24M.Corrected)
+
+filteredgenes <- read.xls(file.path(resultsDir, "Normalized.Filtered.xls"), sheet = 1,header=TRUE)
+rownames(filteredgenes) <- filteredgenes$X
+
+#revisar que listofcomparisons y listofcoef sigan el mismo orden
+for (i in 1:length(listofcomparisons))  {
+   topTab <-listofcomparisons[[i]]
+   EntrezsA <- getEG (rownames(topTab), annotation(eset_rma))
+   SymbolsA <- getSYMBOL (rownames(topTab), annotation(eset_rma))
+   otherNames <- cbind.data.frame(SymbolsA, EntrezsA, topTab)
+   otherNames <- merge(otherNames, filteredgenes, by=0)
+   names(otherNames) <- c("Affymetrix ID","Gene Symbol", "Entrez", colnames(topTab), 
+                         colnames(filteredgenes))
+   otherNames <- otherNames[order(-otherNames$B),]
+   assign(paste0("csv2topTab.", listofcoef[i]), data.frame(otherNames))
+   WriteXLS(otherNames, ExcelFileName = file.path(resultsDir, paste("ExpressionAndTop_",
+                                       listofcoef[i],".xls",sep="")), row.names = FALSE)
+ }
+@
+
+%\newpage
+In tables \ref{tab:top1} to \ref{tab:top13}, the 5 more differential expressed genes for each comparison can be found.
+
+<<topGenes1, echo=FALSE, results='asis'>>=
+csvtable1 <- xtable(csv2topTab.APP.6MvsWT.6M[1:5,1:9],caption="5 genes more differentially expressed in comparison APP.6MvsWT.6M",label="tab:top1")
+print(csvtable1, tabular.environment='longtable',floating=FALSE,size="tiny",
+      include.rownames=FALSE)
+@
+
+<<topGenes2, echo=FALSE, results='asis'>>=
+csvtable2 <- xtable(csv2topTab.APP.12MvsWT.12M[1:5,1:9],caption="5 genes more differentially expressed in comparison APP.12MvsWT.12M",label="tab:top2")
+print(csvtable2, tabular.environment='longtable',floating=FALSE,size="tiny", 
+      include.rownames = FALSE)
+@
+
+<<topGenes3, echo=FALSE, results='asis'>>=
+csvtable3 <- xtable(csv2topTab.APP.18MvsWT.18M[1:5,1:9],caption="5 genes more differentially expressed in comparison APP.18MvsWT.18M",label="tab:top3")
+print(csvtable3, tabular.environment='longtable',floating=FALSE,size="tiny", include.rownames = FALSE)
+@
+
+<<topGenes4, echo=FALSE, results='asis'>>=
+csvtable4 <- xtable(csv2topTab.APP.24MvsWT.24M[1:5,1:9],caption="5 genes more differentially expressed in comparison APP.24MvsWT.24M",label="tab:top4")
+print(csvtable4, tabular.environment='longtable',floating=FALSE,size="tiny", include.rownames = FALSE)
+@
+
+<<topGenes5, echo=FALSE, results='asis'>>=
+csvtable5 <- xtable(csv2topTab.WT.12MvsWT.6M[1:5,1:9],caption="5 genes more differentially expressed in comparison WT.12MvsWT.6M",label="tab:top5")
+print(csvtable5, tabular.environment='longtable',floating=FALSE,size="tiny", include.rownames = FALSE)
+@
+
+<<topGenes6, echo=FALSE, results='asis'>>=
+csvtable6 <- xtable(csv2topTab.WT.18MvsWT.6M[1:5,1:9],caption="5 genes more differentially expressed in comparison WT.18MvsWT.6M",label="tab:top6")
+print(csvtable6, tabular.environment='longtable',floating=FALSE,size="tiny", include.rownames = FALSE)
+@
+
+<<topGenes7, echo=FALSE, results='asis'>>=
+csvtable7 <- xtable(csv2topTab.WT.24MvsWT.6M[1:5,1:9],caption="5 genes more differentially expressed in comparison WT.24MvsWT.6M",label="tab:top7")
+print(csvtable7, tabular.environment='longtable', floating=FALSE, size="tiny", 
+      include.rownames = FALSE)
+@
+
+<<topGenes8, echo=FALSE, results='asis'>>=
+csvtable8 <- xtable(csv2topTab.APP.12MvsAPP.6M[1:5,1:9],caption="5 genes more differentially expressed in comparison APP.12MvsAPP.6M",label="tab:top8")
+print(csvtable8, tabular.environment='longtable', floating=FALSE, size="tiny", 
+      include.rownames = FALSE)
+@
+
+
+<<topGenes9, echo=FALSE, results='asis'>>=
+csvtable9 <- xtable(csv2topTab.APP.18MvsAPP.6M[1:5,1:9],caption="5 genes more differentially expressed in comparison APP.18MvsAPP.6M", label="tab:top9")
+print(csvtable9, tabular.environment='longtable', floating=FALSE, size="tiny", 
+      include.rownames = FALSE)
+@
+
+<<topGenes10, echo=FALSE, results='asis'>>=
+csvtable10 <- xtable(csv2topTab.APP.24MvsAPP.6M[1:5,1:9],caption="5 genes more differentially expressed in comparison APP.24MvsAPP.6M", label="tab:top10")
+print(csvtable10, tabular.environment='longtable', floating=FALSE, size="tiny", 
+      include.rownames = FALSE)
+@
+
+<<topGenes11, echo=FALSE, results='asis'>>=
+csvtable11 <- xtable(csv2topTab.Effect.APP12M.Corrected[1:5,1:9],caption="5 genes more differentially expressed in comparison Effect.APP12M.Corrected", label="tab:top11")
+print(csvtable11, tabular.environment='longtable', floating=FALSE, size="tiny", 
+      include.rownames = FALSE)
+@
+
+<<topGenes12, echo=FALSE, results='asis'>>=
+csvtable12 <- xtable(csv2topTab.Effect.APP18M.Corrected[1:5,1:9],caption="5 genes more differentially expressed in comparison Effect.APP18M.Corrected", label="tab:top12")
+print(csvtable12, tabular.environment='longtable', floating=FALSE, size="tiny", 
+      include.rownames = FALSE)
+@
+
+<<topGenes13, echo=FALSE, results='asis'>>=
+csvtable13 <- xtable(csv2topTab.Effect.APP24M.Corrected[1:5,1:9],caption="5 genes more differentially expressed in comparison Effect.APP24M.Corrected", label="tab:top13")
+print(csvtable13, tabular.environment='longtable', floating=FALSE, size="tiny", 
+      include.rownames = FALSE)
+@
+
+In figures \ref{fig:volcano1} to \ref{fig:volcano3} the Volcano plots for each comparison can be found. Gene's names are shown when \textbf{adjusted Pvalue is under 0.05} and \textbf{absolute logarithmic fold change is above 1.5} (in purple in the plot).
+
+<<volcanos1,echo=FALSE,results='hide',message=FALSE, eval=TRUE>>=
+#es seleccionen els gens que volem que apareguin en els volcano
+listofcsv <- list(csv2topTab.APP.6MvsWT.6M, csv2topTab.APP.12MvsWT.12M, 
+                  csv2topTab.APP.18MvsWT.18M, csv2topTab.APP.24MvsWT.24M, 
+                  csv2topTab.WT.12MvsWT.6M, csv2topTab.WT.18MvsWT.6M, 
+                  csv2topTab.WT.24MvsWT.6M, csv2topTab.APP.12MvsAPP.6M, 
+                  csv2topTab.APP.18MvsAPP.6M, csv2topTab.APP.24MvsAPP.6M, 
+                  csv2topTab.Effect.APP12M.Corrected, csv2topTab.Effect.APP18M.Corrected,
+                  csv2topTab.Effect.APP24M.Corrected)
+
+#aquí es miren els punts que sortiran amb nom
+for(i in 1:length(listofcsv)){
+  assign(paste0("vol",i), subset(listofcsv[[i]], adj.P.Val <.05 & abs(logFC)>1.5))
+}
+
+#s'afegeix una columna per dir quins gens es pintaran després al volcano
+csv2topTab.APP.6MvsWT.6M$threshold <- as.factor(csv2topTab.APP.6MvsWT.6M$adj.P.Val <0.05 & abs(csv2topTab.APP.6MvsWT.6M$logFC) > 1.5)
+csv2topTab.APP.12MvsWT.12M$threshold <- as.factor(csv2topTab.APP.12MvsWT.12M$adj.P.Val <0.05 & abs(csv2topTab.APP.12MvsWT.12M$logFC) > 1.5)
+csv2topTab.APP.18MvsWT.18M$threshold <- as.factor(csv2topTab.APP.18MvsWT.18M$adj.P.Val <0.05 & abs(csv2topTab.APP.18MvsWT.18M$logFC) > 1.5)
+csv2topTab.APP.24MvsWT.24M$threshold <- as.factor(csv2topTab.APP.24MvsWT.24M$adj.P.Val <0.05 & abs(csv2topTab.APP.24MvsWT.24M$logFC) > 1.5)
+csv2topTab.WT.12MvsWT.6M$threshold <- as.factor(csv2topTab.WT.12MvsWT.6M$adj.P.Val <0.05 & abs(csv2topTab.WT.12MvsWT.6M$logFC) > 1.5)
+csv2topTab.WT.18MvsWT.6M$threshold <- as.factor(csv2topTab.WT.18MvsWT.6M$adj.P.Val <0.05 & abs(csv2topTab.WT.18MvsWT.6M$logFC) > 1.5)
+csv2topTab.WT.24MvsWT.6M$threshold <- as.factor(csv2topTab.WT.24MvsWT.6M$adj.P.Val <0.05 & abs(csv2topTab.WT.24MvsWT.6M$logFC) > 1.5)
+csv2topTab.APP.12MvsAPP.6M$threshold <- as.factor(csv2topTab.APP.12MvsAPP.6M$adj.P.Val <0.05 & abs(csv2topTab.APP.12MvsAPP.6M$logFC) > 1.5)
+csv2topTab.APP.18MvsAPP.6M$threshold <- as.factor(csv2topTab.APP.18MvsAPP.6M$adj.P.Val <0.05 & abs(csv2topTab.APP.18MvsAPP.6M$logFC) > 1.5)
+csv2topTab.APP.24MvsAPP.6M$threshold <- as.factor(csv2topTab.APP.24MvsAPP.6M$adj.P.Val <0.05 & abs(csv2topTab.APP.24MvsAPP.6M$logFC) > 1.5)
+csv2topTab.Effect.APP12M.Corrected$threshold <- as.factor(csv2topTab.Effect.APP12M.Corrected$adj.P.Val <0.05 & abs(csv2topTab.Effect.APP12M.Corrected$logFC) > 1.5)
+csv2topTab.Effect.APP18M.Corrected$threshold <- as.factor(csv2topTab.Effect.APP18M.Corrected$adj.P.Val <0.05 & abs(csv2topTab.Effect.APP18M.Corrected$logFC) > 1.5)
+csv2topTab.Effect.APP24M.Corrected$threshold <- as.factor(csv2topTab.Effect.APP24M.Corrected$adj.P.Val <0.05 & abs(csv2topTab.Effect.APP24M.Corrected$logFC) > 1.5)
+
+#es torna a fer la llista ja que hem afegit la nova columnma
+listofcsv <- list(csv2topTab.APP.6MvsWT.6M, csv2topTab.APP.12MvsWT.12M, 
+                  csv2topTab.APP.18MvsWT.18M, csv2topTab.APP.24MvsWT.24M, 
+                  csv2topTab.WT.12MvsWT.6M, csv2topTab.WT.18MvsWT.6M,
+                  csv2topTab.WT.24MvsWT.6M, csv2topTab.APP.12MvsAPP.6M, 
+                  csv2topTab.APP.18MvsAPP.6M, csv2topTab.APP.24MvsAPP.6M, 
+                  csv2topTab.Effect.APP12M.Corrected, csv2topTab.Effect.APP18M.Corrected,
+                  csv2topTab.Effect.APP24M.Corrected)
+
+
+#definim on es dibuixarà la linea vertical i el valor màxim dels eixos
+FC <- 1.5
+x0 <- -3
+x1 <- +4
+y0 <- 0 #normalment es quedarà així
+y1 <- 20
+
+listofvol <- list(vol1, vol2, vol3, vol4, vol5, vol6, vol7, vol8, vol9, vol10, vol11, 
+                  vol12, vol13)
+
+listofcomparisonsnames <- listofcoef #comprobar que orden es == a listofcsv
+#primero se genera la lista con todos los volcanos y después se van imprimiendo en diferentes archivos según interese
+plots <- list()
+for(i in 1:13){
+g <- ggplot(data = listofcsv[[i]], 
+            aes(x = logFC, y = -log10(P.Value), colour = threshold)) +
+  scale_colour_manual(values = c("lightblue", "purple"))+
+  geom_point(alpha = 0.4, size = 1.75) +
+  xlim(c(x0, x1)) + 
+  xlab("log2 fold change") + ylab("-log10 P.Value")
+pl <- g + theme_bw() + 
+  ggtitle(paste0("Volcano for: ", listofcomparisonsnames[i])) +
+  theme(plot.title = element_text(lineheight=.8, face="bold", hjust=0.5, size=8), 
+        legend.position = "none") +
+  geom_vline(xintercept = c(-FC, FC), linetype="dotted") +
+  geom_text(data = subset(listofcsv[[i]], threshold == "TRUE"), aes(label=Gene.Symbol),
+            size = 1.5, vjust = -0.25, hjust = 1.5) + 
+  scale_y_continuous(trans = "log1p", limits = c(y0, y1))
+plots[[i]] <- pl
+}
+
+pdf(file.path(resultsDir,"VolcanosEffectAPPvsWT.pdf"))
+multiplot(plotlist = plots[1:4], cols = 2)
+dev.off()
+
+
+pdf(file.path(resultsDir,"VolcanosEffectAging.pdf"))
+multiplot(plotlist = plots[5:7], cols = 2)
+dev.off()
+
+pdf(file.path(resultsDir,"VolcanosEffectAPPvs6M.pdf"))
+multiplot(plotlist = plots[8:10], cols = 2)
+dev.off()
+
+pdf(file.path(resultsDir,"VolcanosEffectAPPCorrected.pdf"))
+multiplot(plotlist = plots[11:13], cols = 2)
+dev.off()
+@
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=1.2]{results/VolcanosEffectAPPvsWT.pdf}
+  \caption{Volcano plots for comparisons \texttt{Effect of APP vs WT}}
+  \label{fig:volcano1}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=1.2]{results/VolcanosEffectAging.pdf}
+  \caption{Volcano plots for comparisons \texttt{Effect of Aging}}
+  \label{fig:volcano2}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=1.2]{results/VolcanosEffectAPPvs6M.pdf}
+  \caption{Volcano plot for comparisons \texttt{Effect of APP vs 6M}}
+  \label{fig:volcano3}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=1.2]{results/VolcanosEffectAPPCorrected.pdf}
+  \caption{Volcano plot for comparisons \texttt{Effect of APP Corrected}}
+  \label{fig:volcano3}
+\end{figure}
+
+<<saveRDA,echo=FALSE>>=
+save(csv2topTab.APP.6MvsWT.6M, csv2topTab.APP.12MvsWT.12M, csv2topTab.APP.18MvsWT.18M,
+     csv2topTab.APP.24MvsWT.24M, csv2topTab.WT.12MvsWT.6M, csv2topTab.WT.18MvsWT.6M,
+     csv2topTab.WT.24MvsWT.6M, csv2topTab.APP.12MvsAPP.6M, csv2topTab.APP.18MvsAPP.6M,
+     csv2topTab.APP.24MvsAPP.6M, csv2topTab.Effect.APP12M.Corrected, 
+     csv2topTab.Effect.APP18M.Corrected, csv2topTab.Effect.APP24M.Corrected,
+     eset_rma, eset_filtered, targets, listofcomparisonsnames, listofcsv, listofcoef,
+     listoftop, listofcomparisons, file = file.path(dataDir,"afterTopTabs.Rda"))
+@

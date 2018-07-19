@@ -1,0 +1,156 @@
+<<setDirs,echo=FALSE>>=
+ mainDir <-getwd()
+ workingDir <- mainDir
+ dataDir <-file.path(mainDir, "dades")
+ celDir <-  file.path(workingDir, "celfiles")
+ resultsDir <- file.path(workingDir, "results")
+ imagesDir<-file.path(mainDir,"images")
+@
+
+<<options,echo=FALSE>>=
+ require(knitr)
+ opts_chunk$set(fig.path = imagesDir, echo=FALSE, message=FALSE,warnings = FALSE )
+ options(warn=-1)
+@
+
+<<loadData2,echo=FALSE>>=
+load(file.path(dataDir,"afterTopTabs.Rda"))
+@
+
+\subsection{Gene Targets for miRNA}
+Once a list of most differentially miRNA has been obtained, it would be interesting in which biological process these miRNAs participate. It is know that miRNAs regulate expression by promoting degradation or repressing translation of target transcripts. miRNA target sites have been catalogued in databases based on experimental validation and computational prediction using a variety of algorithms. In this study \textit{multiMiR} Bioconductor's package (http://multimir. ucdenver.edu) has been used for this purpose \cite{multiMiR}. This package enables retrieval of miRNA-target interactions from 14 external databases.
+
+This analysis has been performed for a certain set of miRNAs. For that reason, like in multiple comparison analysis, different statistical criteria has been set for each comparison:
+\begin{itemize}
+  \item Comparison \textbf{CasovsCTL}: miRNas with \textbf{pvalue under 0.01} and \textbf{logFC over 0.5}. Total miRNAs included: \textbf{31}.
+  \item Comparison \textbf{CasovsCTL.Paired}: miRNas with \textbf{pvalue under 0.01} and \textbf{logFC over 0.5}. Total miRNAs included: \textbf{39}.
+\end{itemize}
+\\
+<<mirRNAtagets,echo=FALSE,results='hide'>>=
+library(multiMiR)
+ 
+#select the miRNAs in comparison CasovsCTL
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+multi1 <- topTab_CasovsCTL.anotada[which(topTab_CasovsCTL.anotada$P.Value<0.01 &
+                                           abs(topTab_CasovsCTL.anotada$logFC)>0.5),]
+#dim(multi1)#31 9
+mirna1 <- unique(multi1$Symbol) #29
+
+#busquem a les bases de dades validades
+list.val.1 = get.multimir(mirna=mirna1, summary=TRUE,table="validated",org = 'hsa')
+head(list.val.1$validated)
+#es fa un dataframe amb dos columnes: miRNAs i gens diana
+df.val.1 <- unique(data.frame(miRNA.ID <- as.character(list.val.1$validated$mature_mirna_id),target.ID <- as.character(list.val.1$validated$target_symbol),ENTREZ <- as.character(list.val.1$validated$target_entrez)))
+colnames(df.val.1) <- c("miRNA.ID","Validated.target.ID","ENTREZ")
+head(df.val.1)
+dim(df.val.1) # 6141 4
+write.csv2(df.val.1,file.path(resultsDir,"Validated.Interactions.CasevsCTL.csv"))
+
+#busquem a les bases de dades predicted
+list.pre.1 = get.multimir(mirna=mirna1, summary=TRUE,table="predicted",org = 'hsa')
+head(list.pre.1$predicted)
+df.pre.1 <- unique(data.frame(miRNA.ID <- as.character(list.pre.1$predicted$mature_mirna_id),target.ID <- as.character(list.pre.1$predicted$target_symbol),ENTREZ <- as.character(list.pre.1$predicted$target_entrez),Ensembl <- as.character(list.pre.1$predicted$target_ensembl)))
+colnames(df.pre.1) <- c("miRNA.ID","Predicted.target.ID","ENTREZ","Ensembl")
+head(df.pre.1)
+dim(df.pre.1) #29899
+write.csv2(df.pre.1,file.path(resultsDir,"Predicted.Interactions.CasevsCTL.csv"))
+
+#select the miRNAs in comparison CasovsCTL
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+multi2 <- topTab_CasovsCTL.Paired.anotada[which(topTab_CasovsCTL.Paired.anotada$P.Value<0.01 &
+                                           abs(topTab_CasovsCTL.Paired.anotada$logFC)>0.5),]
+#dim(multi2) #39 9
+mirna2 <- unique(multi2$Symbol) #37
+list.val.2 = get.multimir(mirna=mirna2, summary=TRUE, table="validated",org = 'hsa')
+head(list.val.2$validated)
+dim(list.val.2$validated) #10731 9
+
+#es fa un dataframe amb dos columnes: miRNAs i gens diana
+df.val.2 <- unique(data.frame(miRNA.ID <- as.character(list.val.2$validated$mature_mirna_id),target.ID <- as.character(list.val.2$validated$target_symbol),ENTREZ <- as.character(list.val.2$validated$target_entrez)))
+colnames(df.val.2) <- c("miRNA.ID","Validated.target.ID","ENTREZ")
+head(df.val.2)
+dim(df.val.2) #6443 2
+write.csv2(df.val.2,file.path(resultsDir,"Validated.Interactions.CasevsCTL.Paired.csv"))
+
+#busquem a les bases de dades predicted
+list.pre.2 = get.multimir(mirna=mirna2, summary=TRUE,table="predicted",org = 'hsa')
+head(list.pre.2$predicted)
+df.pre.2 <- unique(data.frame(miRNA.ID <- as.character(list.pre.2$predicted$mature_mirna_id),target.ID <- as.character(list.pre.2$predicted$target_symbol),ENTREZ <- as.character(list.pre.2$predicted$target_entrez),Ensembl <- as.character(list.pre.2$predicted$target_ensembl)))
+colnames(df.pre.2) <- c("miRNA.ID","predicted.target.ID","ENTREZ","Ensembl")
+head(df.pre.2)
+dim(df.pre.2) #35384
+write.csv2(df.pre.2,file.path(resultsDir,"Predicted.Interactions.CasevsCTL.Paired.csv"))
+@
+
+In tables \ref{tab1} and \ref{tab2} the first 5 \texttt{validated interactions} and \texttt{predicted interactions} respectively, between miRNA and genes are shown for comparison \texttt{CasovsCTL}:
+
+<<topGenes1, echo=FALSE, results='asis'>>=
+library(xtable)
+csvtable1<-xtable(df.val.1[1:5,],caption="First 5 validated interactions miRNA-target-gene (CasovsCTL)",label="tab1")
+print(csvtable1, tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+
+<<topGenes2, echo=FALSE, results='asis'>>=
+csvtable2<-xtable(df.pre.1[1:5,],caption="First 5 predicted interactions miRNA-target-gene (CasovsCTL)",label="tab2")
+print(csvtable2, tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+
+In tables \ref{tab3} and \ref{tab4} the first 5 \texttt{validated interactions} and \texttt{predicted interactions} respectively, between miRNA and genes are shown for comparison \texttt{CasovsCTL.Paired}:
+
+<<topGenes3, echo=FALSE, results='asis'>>=
+csvtable3<-xtable(df.val.2[1:5,],caption="First 5 validated interactions miRNA-target-gene (CasovsCTL.Paired)",label="tab3")
+print(csvtable3, tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+
+<<topGenes4, echo=FALSE, results='asis'>>=
+csvtable4<-xtable(df.pre.2[1:5,],caption="First 5 predicted interactions miRNA-target-gene (CasovsCTL.Paired)",label="tab4")
+print(csvtable4, tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+
+
+<<spidermiR,eval=FALSE>>=
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("SpidermiR")
+# library(SpidermiR)
+# 
+# org<-SpidermiRquery_species(species)
+# 
+# net_type<-SpidermiRquery_networks_type(organismID=org[6,])
+# net_shar_prot<-SpidermiRquery_spec_networks(organismID = org[6,],network = "PATH")
+# out_net<-SpidermiRdownload_net(net_shar_prot)
+# 
+# #llistes que es poden extreure
+# mirna<-as.vector(unique(multi1$Symbol))[1:3]
+# 
+# mirna.predicted <- SpidermiRdownload_miRNAprediction(mirna_list=mirna)
+# dim(mirna.predicted) #194 2
+# mirna.validated<-SpidermiRdownload_miRNAvalidate(mirna)
+# dim(mirna.validated) #39382 2
+# mirna.circ<-SpidermiRdownload_miRNAextra_cir(mirna)
+# dim(mirna.circ) #2695 17
+# 
+# #Prepare matrix of gene network with Ensembl Gene ID, and gene symbols from the network data previously downloaded
+# geneSymb_net<-SpidermiRprepare_NET(organismID = org[6,],  data =out_net)
+# 
+# miRNA_NET<-SpidermiRanalyze_mirna_network(data=geneSymb_net,miR_trg="val") #això triga molt
+# 
+# #Searching by biomarkers of interest with direct interaction
+# biomark_of_interest<-c("hsa-miR-17-3p","hsa-miR-223-3p","hsa-miR-27b-3p")
+# GIdirect_net<-SpidermiRanalyze_direct_net(data=miRNA_NET,BI=biomark_of_interest)
+# GIdirect_net_neigh<-SpidermiRanalyze_subnetwork_neigh(data=miRNA_NET,BI=biomark_of_interest)
+# 
+# library(networkD3)
+# library(visNetwork)
+# 
+# SpidermiRvisualize_direction(data=GIdirect_net)
+# SpidermiRvisualize_direction(data=GIdirect_net_neigh)
+# SpidermiRvisualize_mirnanet(data=GIdirect_net)
+@
+
+
+\section{Conclusions}
+The present study was intended to find differential expressed genes in samples from patients who have respond well and bad to a lung transplant. The study include 40 samples, 20 of each group,  processed in microarrays cartridge format (GeneChip miRNA 4.0 Array). Quality control analysis has discarded sample \texttt{P05.Control.3} for subsequent analysis. In consequence, paired patient \texttt{P06.Caso.3} has been also discarded when paired test is used. Principal Component Analysis separates \texttt{Control} group on the left of the plot and \texttt{Caso} group on the right. Some samples of \texttt{Control} allocates with the \texttt{Caso} group and viceversa.
+
+After filtering, 6.631 probes has been included in the analysis. Two comparisons have been performed with different number of features significantly expressed. In \texttt{paired comparison}, \textbf{149 differential expressed miRNA with a p-value under 0.01} has been found. On the other hand, in \texttt{unpaired comparison},  \textbf{163 differential expressed miRNA with a p-value  under 0.01} has been found.
+Venn diagram has been drawn to see common genes between the two comparisons, resulting in \textbf{57 genes in common} with log fold change of 0.5 and pvalue of 0.05. In the same way, heatmaps has been plot, and some degree of missclassification of \texttt{Control} samples and \texttt{Case} group samples has been observed.
+Analysis of biological functions of differentially expressed miRNA proportioned different list of validated and predicted target genes.

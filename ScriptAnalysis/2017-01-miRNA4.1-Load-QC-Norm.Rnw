@@ -1,0 +1,196 @@
+
+\section{Introduction and Study Organization}
+Researches are interested in effects of brain stroke over the expression of genes, miRNA and proteins, and the interaction among them. In particular, this study will focus on the effects of ischemia in brain, used to mimic the effects of stroke, in miRNA expression using microarray technology.
+\\
+The experimental conditions considered in this analysis are:
+\begin{enumerate}
+  \item Factor \textit{Treatment}:
+    \begin{enumerate}
+      \item 4 animals without treatment (SHAM)
+      \item 8 animals with ischemia treatment (ISC)
+    \end{enumerate}
+  \item Factor \textit{Brain_region}:
+    \begin{enumerate}
+      \item 12 samples from ipsilateral region (IP) 
+      \item 12 samples from contralateral region (CL)
+    \end{enumerate}
+\end{enumerate}
+\\
+The analysis has been performed following the usual “pipeline” for microarray data
+analysis. Roughly speaking each of the items below corresponds to one section in the analysis report:
+\begin{enumerate}
+  \item Quality control: Do we have good data? Should any slides be rejected?
+  \item Data preprocess: Summarization, filtering and normalization.
+  \item Selection of genes differentially expressed for each set of conditions.
+  \item Search for gene expression patterns and grouping of samples.
+  \item Annotation of results and analysis of biological significance.
+\end{enumerate}
+
+The statistic analysis has been performed using the statistical language  ``R''( \textttt{\Sexpr{R.Version()$versi}, Copyright (C) 2015 The R Foundation for Statistical Computing} ), and the libraries developed for the microarray analysis in the Bioconductor Project (\url{www.bioconductor.org}). More details about the methods used in these analysis could be  found in \cite{Gentleman:2005}.
+
+
+\subsection{Objetive and Study Questions} \label{objectives}
+
+The \textbf{main objective} of this study is to find differentially expressed miRNAs between two regions of the mouse's brain (ipsilateral and contralateral) in ischemic animals and sham animals.
+
+\noindent This objective may be summarized in the following questions, as described in the proposal:
+\begin{itemize}
+\item Effect of \textit{Brain.region}:
+  \begin{enumerate}
+    \item In \texttt{Sham} animals: IPSI.SHAM vs CONT.SHAM = IPSI.SHAM - CONT.SHAM
+    \item In \texttt{Ischemic} animals: IPSI.ISC vs CONT.ISC = IPSI.ISC - CONT.ISC
+  \end{enumerate}
+\item Effect of \textit{Treatment}:
+\begin{enumerate}
+    \item In \texttt{Ipsilateral} region: IPSI.ISC vs IPSI.SHAM = IPSI.ISC – IPSI.SHAM
+    \item In \texttt{Contralateral} region: CONT.ISC vs CONT.SHAM = CONT.ISC - CONT.SHAM
+  \end{enumerate}
+\end{itemize}
+
+\section{Data and Experimental design}
+Data for the analysis has been obtained from the Genomic's UAT core facility at VHIR, where the microarrays were performed. The study is based on 16 samples. Table \ref{targettable} shows the allocation of each sample to each experimental condition:
+
+<<setDirs,echo=FALSE>>=
+mainDir <-getwd()
+workingDir <- mainDir
+dataDir <-file.path(mainDir, "dades")
+celDir <-  file.path(workingDir, "celfiles")
+celDir2 <-  file.path(workingDir, "celfiles2")
+celdirSHAM <- file.path(workingDir,"celfilesSHAM")
+celdirISC <- file.path(workingDir,"celfilesISC")
+resultsDir <- file.path(workingDir, "results")
+imagesDir<-file.path(mainDir,"images")
+@
+
+<<options,echo=FALSE>>=
+require(knitr)
+opts_chunk$set(fig.path = imagesDir, echo=FALSE, message=FALSE,warnings = FALSE )
+options(warn=-1)
+@
+
+<<loadpackages, echo=FALSE, results='hide',message=FALSE>>=
+library(xtable)
+library(Biobase)
+library(oligo)
+library(arrayQualityMetrics)
+library(devtools)
+@
+
+
+<<phenoData1, echo=FALSE, results='asis'>>=
+my.targets <-read.table(file.path(dataDir,"targets.ASB3296.txt"), 
+  header = TRUE, row.names = 1) 
+
+stopifnot(require(xtable))
+x.big<-xtable(my.targets[,1:7],caption="Targets file showing samples and covariates",label="targettable")
+print(x.big,tabular.environment='longtable',floating=FALSE,size="tiny")
+@
+
+\section{Results}
+\subsection{Quality Control}
+Different types of quality controls (QC) have been performed in this analysis. In this study QC for normalized data is shown.
+A comprehensive report and more quality control checks,  are provided for the normalized data at \texttt{(QCDir.norm/index.html)} to help the user to understand whether a particular array can be considered as an outlier.
+
+<<readdata, echo=FALSE,results='hide'>>=
+#en este caso los datos vienen de la expresión console. Ya normalizados
+dades<-read.csv(file=file.path(dataDir,"dadesAlbaSimatsmiRNA_RMA_EC.TXT"),sep="\t",header=TRUE)
+dim(dades)#39392 33
+
+#filtrem només per quedar-nos amb els d'humà
+dades.huma<-dades[which(dades$Species.Scientific.Name == "Homo sapiens"),]
+
+#ara ens quedem només amb la matriu de dades. Els rownames seran els ID's de Affymetrix
+rownames(dades.huma)<-dades.huma[,1]
+data<-dades.huma[,2:25]
+colnames(data) <- my.targets$ShortName
+
+#guardem les anotacions en un altre fitxer
+anotaciones <- dades.huma[,26:33]
+@
+
+<<preajustes, echo=FALSE,results='hide'>>=
+colores <- as.character(my.targets$Colores)
+grupos <- my.targets$Grupo
+batch<-my.targets$Batch
+numSamples <- nrow(my.targets)
+sampleNames <-my.targets$ShortName
+forma2pca<-c(15,16,17,18,rep(c(15,16),2),rep(c(17,18),2),rep(c(15,16),2),17,18, rep(c(15,16),2))
+@ 
+
+Figure \ref{fig:boxplot} shows a boxplot representing summaries of the signal intensity distributions of the arrays. Typically, one expects the boxes to have similar positions and widths. If the distribution of an array is very different from the others, this may indicate a problem.
+  
+
+<<boxplot2pdf,results='hide',message=FALSE>>=
+pdf(file.path(resultsDir,"Boxplot.pdf"))
+boxplot(data, cex.axis=0.6, col=colores,  las=2, names=sampleNames, 
+        main="Boxplot for arrays intensity")
+dev.off()
+@ 
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[scale=0.50]{results/Boxplot.pdf}
+  \caption{Instensity distribution of the arrays}
+  \label{fig:boxplot}
+\end{figure}
+
+As shown in figure \ref{fig:boxplot}, the intensity distribution of the arrays is quite similar in all the samples.
+\\
+Figure \ref{fig:PCA2D} shows a scatterplot of the arrays along the first two principal components. Principal components Analysis (PCA) is a dimension reduction technique that may be used to represent the values of an expression matrix in two (or three) dimensions. The plot is constructed in such a way that “similar” arrays should appear together in the plot, so that if a sample appears near others that are not considered similar it can be suspected the presence of some kind of technical problems such as batch effects, mislabelling of samples, etc.
+
+%' <<plotPCA2Dpdf,results='hide',message=FALSE,echo=FALSE>>=
+%' #la funció plotPCA2 retalla la primera columna per defecte, per això creem data.pca on hem deixat els IDs de affymetrix que haviem tret.
+%' install_github("uebvhir/plotPCA2")
+%' library(plotPCA2)
+%' data.pca <- dades.huma[,1:25]
+%' plotPCA2(data.pca,sampleNames,grupos,"Normalized Data",scale=FALSE)
+%' 
+%' pdf(file.path(resultsDir,"PCA.pdf"))
+%' plotPCA2(data.pca,sampleNames,grupos,"Normalized Data",scale=FALSE)
+%' dev.off()
+%' @
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.60]{results/PCA.pdf}
+\caption{Principal component 2D plot of initial samples.}
+\label{fig:PCA2D}
+\end{figure}
+
+In this study, first component of the PCA, that accounts for 18.8\% of the total variability, and seems to separate the \texttt{SHAM} on the right side of the plot, and the \texttt{ISC} on the left side.
+\\
+
+Three more approaches to check the quality of the arrays, not shown here but present in the \texttt{Results} folder have been performed. The first one is the Heatmap depicting the distances between arrays, another one the hierarquical clustering (the two plots are in the \texttt{QCData.pdf} file) and the quality assesment performed by the ArrayQualityMetrics Bioconductor package (\cite{AQM:2009}) (\texttt{QCDir}). In the heatmap, the color scale is chosen to cover the range of distances encountered in the dataset. Patterns in this plot can indicate some kind of clustering (grouping) of the arrays which may be attributable either to biological, experimental or technical effects. Usually distances between arrays should be very similar, so when one array is very different from the rest it is identified as an outlier. In hierarquical clustering, distances between arrays, as a measure of similarity, are calculated and ploted into a graph to valorate how the sample are grouped among them.
+\\
+
+<<distAnalisis, echo=FALSE,results='hide'>>=
+manDist <-  dist(t(data)) 
+clust.euclid.average <- hclust(manDist,method="average")
+
+pdf(file.path(resultsDir,"QCData.pdf"))
+heatmap (as.matrix(manDist),  col=heat.colors(16))  
+plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering of samples",  hang=-1)
+dev.off()
+@
+
+<<arrayQuality, warning=FALSE,echo=FALSE>>=
+#creamos un 
+targets.eset<-read.AnnotatedDataFrame(file.path(dataDir,"targets.ASB3296.txt"), 
+  header = TRUE, row.names = 1, sep="\t")
+data.eset <- data
+colnames(data.eset) <- rownames(my.targets)
+eset <- ExpressionSet(as.matrix(data.eset), phenoData=targets.eset, annotation="micros")
+length.path <- function(x) length(unclass(x)) #sino posava això donava error (trobat en internet). Perque error -> npi
+arrayQualityMetrics(eset, outdir = file.path(resultsDir, "QCDir"), force=TRUE)
+@
+
+
+Once all the analyses have been performed the different outlier–detection approaches are
+compared in order to decide whether or not an array should be removed. Usually only arrays
+that are called outliers by more than one criteria are be considered to rule out, although this
+depends on every specific study. \textbf{We concluded that it is not necessary to exclude any of the samples of the study.}
+\\
+<<savedata,echo=FALSE,results='hide'>>=
+save(data,dades,anotaciones,data.eset, my.targets,file=file.path(resultsDir,"normData.Rda"))
+@
+
