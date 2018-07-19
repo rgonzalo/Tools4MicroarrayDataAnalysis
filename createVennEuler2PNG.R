@@ -30,7 +30,7 @@ createVennEuler <- function(topTabs, compNames, label = "selected",
                             colFeat = "X", colPVal = "P.Value", pval = 0.05, 
                             pltR = TRUE, pltPdf = TRUE, venn = TRUE, eul = TRUE, 
                             csv = TRUE, colors = rainbow(length(compNames)), 
-                            trans = 0.5, cex1 = 0.75, rotation, position, cex2) {
+                            trans = 0.5, cex1 = 0.75, rotation, position, cex2){
     
     ## Initializing lists
     list_genes_sel <- list()
